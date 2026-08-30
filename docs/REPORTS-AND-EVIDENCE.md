@@ -12,7 +12,7 @@ Steward’s employee report is a single printable 14-day packet. It includes:
 - the calculation note, generation time, time zone, and calculation version; and
 - blank employee and manager attestation lines.
 
-Its purpose is evidentiary review and payroll preparation. It shows what the system captured, how approved corrections changed the effective view, what calculation was applied, and which exceptions remain. It is labeled a draft review record: printing or exporting does not approve, sign, lock, or freeze anything. Nanshe does not fabricate signatures.
+Its purpose is evidentiary review and payroll preparation. It shows what the system captured, how approved corrections changed the effective view, what calculation was applied, and which exceptions remain. It is labeled a draft review record: printing or exporting does not approve, sign, lock, or freeze anything. TimeClock does not fabricate signatures.
 
 ## Definitions
 

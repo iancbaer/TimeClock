@@ -184,8 +184,8 @@ export function Kiosk() {
   return (
     <main className="kiosk-shell">
       <section className="brand-block">
-        <div className="brand-mark" aria-hidden="true">N</div>
-        <div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>Nanshe</h1></div>
+        <div className="brand-mark" aria-hidden="true">T</div>
+        <div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>TimeClock</h1></div>
       </section>
 
       <section className="clock-card" aria-live="polite">
@@ -215,7 +215,7 @@ export function Kiosk() {
                 </button>
               ))}
             </div>
-            <p className="break-note"><strong>No automatic deductions:</strong> Nanshe counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
+            <p className="break-note"><strong>No automatic deductions:</strong> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
           </section>
 
           <section className="panel recent-panel">

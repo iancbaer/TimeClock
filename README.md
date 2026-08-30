@@ -1,8 +1,8 @@
-# Nanshe
+# TimeClock
 
-Nanshe is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked.
+TimeClock is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked.
 
-Steward is the separate owner portal in this repository. It manages workers, reviews corrections, prepares two-week evidence packets, exports CSV, and maintains settings. Steward desktop packages are available for Windows and Ubuntu; they never change the worker-facing Nanshe identity.
+Steward is the separate owner portal in this repository. It manages workers, reviews corrections, prepares two-week evidence packets, exports CSV, and maintains settings. Steward desktop packages are available for Windows and Ubuntu; they never change the worker-facing TimeClock identity.
 
 ## Worker experience
 
@@ -23,7 +23,7 @@ The employee ID is a convenient identifier, not a strong authentication secret. 
 - Individual 14-day packets split into two independent seven-day workweeks
 - Exact time, paid time credit, regular payable time, overtime, flags, and correction history
 - Self-explanatory CSV and print/PDF evidence outputs with blank attestation lines
-- PostgreSQL, versioned migrations, Docker deployment, Android APK, Nanshe Ubuntu package, and Steward Windows/Ubuntu packages
+- PostgreSQL, versioned migrations, Docker deployment, Android APK, TimeClock Ubuntu package, and Steward Windows/Ubuntu packages
 
 The printable packet is a draft review record. Printing does not approve, sign, lock, or freeze a period.
 
@@ -40,7 +40,7 @@ The printable packet is a draft review record. Printing does not approve, sign, 
 
 ## Calculation contract
 
-Nanshe never changes an original punch. With the default `EMPLOYEE_FAVOR_DAILY_CEILING` mode:
+TimeClock never changes an original punch. With the default `EMPLOYEE_FAVOR_DAILY_CEILING` mode:
 
 1. Exact work comes only from completed work segments.
 2. Unpaid time is recorded by clocking out and back in; no meal time is deducted automatically.
@@ -55,14 +55,14 @@ Example: `7:37 exact` receives `0:08 paid time credit` and becomes `7:45 payable
 
 Washington L&I’s current policy permits nearest-quarter-hour rounding under the seven-minute rule only when it works both directions and does not underpay workers over time. It requires original records to be retained for at least three years and says meal and rest periods may not be rounded. See L&I’s [Recordkeeping and Access to Payroll Records policy](https://www.lni.wa.gov/workers-rights/_docs/ESD1.pdf) and [meal and rest break guidance](https://www.lni.wa.gov/workers-rights/workplace-policies/rest-breaks-meal-periods-and-schedules).
 
-Nanshe’s default is different and more favorable: actual punches remain intact and a separate daily credit is added. Employers should confirm the credit’s payroll, overtime, benefit-plan, collective-bargaining, and tax treatment with Washington employment counsel and a payroll professional. This repository is software, not legal advice.
+TimeClock’s default is different and more favorable: actual punches remain intact and a separate daily credit is added. Employers should confirm the credit’s payroll, overtime, benefit-plan, collective-bargaining, and tax treatment with Washington employment counsel and a payroll professional. This repository is software, not legal advice.
 
 ## Architecture
 
 ```text
-Nanshe Android ─┐
-Nanshe Ubuntu ──┼── HTTPS ── Next.js API ── PostgreSQL
-Nanshe browser ─┤                 │
+TimeClock Android ─┐
+TimeClock Ubuntu ──┼── HTTPS ── Next.js API ── PostgreSQL
+TimeClock browser ─┤                 │
 Steward portal ─┘          immutable records
 ```
 
@@ -82,7 +82,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Open Nanshe at `http://127.0.0.1:3000`. Steward remains a separate route at `http://127.0.0.1:3000/admin`.
+Open TimeClock at `http://127.0.0.1:3000`. Steward remains a separate route at `http://127.0.0.1:3000/admin`.
 
 ## Development and verification
 
@@ -104,10 +104,10 @@ With a synthetic employee on a running server, `npm run smoke` verifies employee
 
 ## Client builds
 
-### Nanshe Android
+### TimeClock Android
 
 ```bash
-npm run build --workspace @nanshe/kiosk
+npm run build --workspace @timeclock/kiosk
 cd apps/android
 npx cap add android
 npx cap sync android
@@ -117,10 +117,10 @@ cd android
 
 The APK bundles the worker interface. Only the configured service address is stored. CI’s debug APK is for testing; production requires an organization-controlled signing key and managed-device policy.
 
-### Nanshe Ubuntu
+### TimeClock Ubuntu
 
 ```bash
-npm run dist --workspace @nanshe/desktop
+npm run dist --workspace @timeclock/desktop
 ```
 
 ### Steward Windows and Ubuntu
@@ -129,7 +129,7 @@ npm run dist --workspace @nanshe/desktop
 npm run dist --workspace @steward/desktop
 ```
 
-The `Build Nanshe and Steward apps` GitHub workflow produces Android, Windows, and Ubuntu artifacts.
+The `Build TimeClock and Steward apps` GitHub workflow produces Android, Windows, and Ubuntu artifacts.
 
 ## Scope
 

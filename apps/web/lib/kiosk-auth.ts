@@ -3,8 +3,8 @@ import { prisma } from "./db";
 import { HttpError } from "./http";
 import { failedAuthenticationGuard, resetAuthenticationRateLimitsForTests } from "./rate-limit";
 
-const SESSION_ISSUER = "nanshe";
-const SESSION_AUDIENCE = "nanshe-kiosk";
+const SESSION_ISSUER = "timeclock";
+const SESSION_AUDIENCE = "timeclock-kiosk";
 
 function sessionSecret(): Uint8Array {
   const value = process.env.AUTH_SECRET;

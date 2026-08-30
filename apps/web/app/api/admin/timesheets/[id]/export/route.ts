@@ -1,4 +1,4 @@
-import { formatDuration } from "@nanshe/core";
+import { formatDuration } from "@timeclock/core";
 import { requireAdmin } from "@/lib/auth";
 import { errorResponse } from "@/lib/http";
 import { buildEmployeeTimesheet } from "@/lib/timesheets";
@@ -15,7 +15,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const periodStart = new URL(request.url).searchParams.get("periodStart") ?? undefined;
     const sheet = await buildEmployeeTimesheet(id, periodStart);
     const rows = [
-      ["Document", "Nanshe pay-period evidence export"],
+      ["Document", "TimeClock pay-period evidence export"],
       ["Purpose", "Review exact recorded time, corrections, calculation results, and payroll exceptions"],
       ["Status", "Draft review record; export does not approve or freeze the pay period"],
       ["Generated at", sheet.report.generatedAt],

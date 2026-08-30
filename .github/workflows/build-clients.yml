@@ -1,4 +1,4 @@
-name: Build Nanshe and Steward apps
+name: Build TimeClock and Steward apps
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
           path: apps/desktop/release/*
           if-no-files-found: error
 
-  nanshe-ubuntu:
+  timeclock-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,11 +42,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run dist --workspace @nanshe/desktop
+      - run: npm run dist --workspace @timeclock/desktop
       - uses: actions/upload-artifact@v4
         with:
-          name: nanshe-ubuntu
-          path: apps/nanshe-desktop/release/*
+          name: timeclock-ubuntu
+          path: apps/timeclock-desktop/release/*
           if-no-files-found: error
 
   android:
@@ -62,13 +62,15 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm ci
-      - run: npm run build --workspace @nanshe/kiosk
+      - run: npm run build --workspace @timeclock/kiosk
       - working-directory: apps/android
         run: npx cap add android && npx cap sync android
+      - working-directory: apps/android
+        run: npm run icons
       - working-directory: apps/android/android
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: nanshe-android
+          name: timeclock-android
           path: apps/android/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

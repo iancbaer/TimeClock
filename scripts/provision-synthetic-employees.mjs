@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 
-const baseUrl = process.env.NANSHE_BASE_URL ?? "http://127.0.0.1:3000";
+const baseUrl = process.env.TIMECLOCK_BASE_URL ?? "http://127.0.0.1:3000";
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const outputPath = process.env.PROVISION_OUTPUT;
@@ -78,7 +78,7 @@ function csv(value) {
 
 const generatedAt = new Date().toISOString();
 const lines = [
-  ["Nanshe local synthetic employee roster"],
+  ["TimeClock local synthetic employee roster"],
   ["Generated at", generatedAt],
   ["Note", "Synthetic local data. Replace demo names with real employee names in Steward. Do not commit real employee information."],
   [],

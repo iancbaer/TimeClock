@@ -11,7 +11,7 @@ coverage/
 apps/android/android/
 apps/android/ios/
 apps/desktop/release/
-apps/nanshe-desktop/release/
+apps/timeclock-desktop/release/
 apps/web/prisma/dev.db*
 .DS_Store
 Thumbs.db

@@ -2,7 +2,7 @@
 
 ## Privacy posture
 
-Nanshe is a shared worker kiosk, not an employee-surveillance product. It captures the minimum data needed for accurate time records and corrections: employee identity, server-timed in/out events, bounded device label, and worker explanations. It does not capture GPS, photos, biometrics, continuous activity, or keystrokes.
+TimeClock is a shared worker kiosk, not an employee-surveillance product. It captures the minimum data needed for accurate time records and corrections: employee identity, server-timed in/out events, bounded device label, and worker explanations. It does not capture GPS, photos, biometrics, continuous activity, or keystrokes.
 
 The worker screen hides Steward, reveals a worker’s name and limited recent record only after ID entry, and returns to the ID screen after an action or one minute of inactivity.
 

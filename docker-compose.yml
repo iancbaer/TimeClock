@@ -16,7 +16,7 @@ services:
 
   migrate:
     build: .
-    image: nanshe-local:latest
+    image: timeclock-local:latest
     restart: "no"
     depends_on:
       database:
@@ -30,12 +30,12 @@ services:
       COMPANY_NAME: ${COMPANY_NAME:-My Company}
       SEED_SYNTHETIC_EMPLOYEE: ${SEED_SYNTHETIC_EMPLOYEE:-false}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
-      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nanshe}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TimeClock}
     command: ["sh", "-c", "npm run db:migrate && npm run db:seed"]
 
   app:
     build: .
-    image: nanshe-local:latest
+    image: timeclock-local:latest
     restart: unless-stopped
     depends_on:
       database:
@@ -46,7 +46,7 @@ services:
       DATABASE_URL: postgresql://timeclock:${POSTGRES_PASSWORD}@database:5432/timeclock?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
-      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nanshe}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TimeClock}
     ports:
       - "127.0.0.1:${TIMECLOCK_PORT:-3000}:3000"
     healthcheck:

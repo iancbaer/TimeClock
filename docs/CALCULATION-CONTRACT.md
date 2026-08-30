@@ -1,6 +1,6 @@
 # Calculation contract
 
-This document defines what the Nanshe calculation engine promises. It is deliberately narrower than a general payroll engine.
+This document defines what the TimeClock calculation engine promises. It is deliberately narrower than a general payroll engine.
 
 ## Authoritative and derived records
 

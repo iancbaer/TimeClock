@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("nansheDesktop", {
+contextBridge.exposeInMainWorld("timeclockDesktop", {
   saveServerUrl: (value) => ipcRenderer.invoke("save-server-url", value),
 });

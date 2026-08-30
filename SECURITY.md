@@ -1,6 +1,6 @@
 # Security policy
 
-Nanshe and its Steward owner portal store payroll-related records and personally identifying information. Treat every production installation as a sensitive system.
+TimeClock and its Steward owner portal store payroll-related records and personally identifying information. Treat every production installation as a sensitive system.
 
 ## Supported version
 

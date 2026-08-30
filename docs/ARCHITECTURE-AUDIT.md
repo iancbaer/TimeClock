@@ -14,10 +14,10 @@ The strongest architectural property is that capture evidence and calculation vi
 packages/core        deterministic state, pay-period, daily, and overtime rules
 apps/web/lib         service-domain workflows, authentication, persistence, reports
 apps/web/app/api     HTTP adapters; validation and authorization boundaries
-apps/web/components  Nanshe web kiosk and Steward presentation
-apps/kiosk           bundled Nanshe interface used by Capacitor
+apps/web/components  TimeClock web kiosk and Steward presentation
+apps/kiosk           bundled TimeClock interface used by Capacitor
 apps/android         Android packaging and native policy
-apps/*/desktop       Nanshe and Steward desktop shells
+apps/*/desktop       TimeClock and Steward desktop shells
 apps/web/prisma      authoritative schema and forward-only migrations
 scripts              verification, backup/restore, and synthetic provisioning tools
 docs                 design, calculation, security, evidence, and operations contracts
@@ -33,7 +33,7 @@ docs                 design, calculation, security, evidence, and operations con
 | High | Container startup ran migrations and seed logic every time; seed rotated admin/worker credentials. | Runtime startup is read-only with respect to schema/seed. Compose and Render perform one-shot predeploy migration/initialization; seed no longer rotates existing credentials. |
 | High | Steward sign-in had no application throttle. | Added source-derived failed-attempt throttling, dummy-hash timing behavior, generic responses, and smoke coverage. |
 | Medium | Infrastructure was described but not reproducible for a public managed host. | Added a Render Blueprint with one web instance, private managed PostgreSQL, generated secrets, health routing, and predeploy migration. |
-| Medium | Container ran as root. | Runtime now uses an unprivileged `nanshe` user and handles `SIGTERM`. |
+| Medium | Container ran as root. | Runtime now uses an unprivileged `timeclock` user and handles `SIGTERM`. |
 | Medium | Identity was absent from report exports and manager lists. | Official number now appears after worker authentication, in Steward, time sheets, corrections, and CSV; internal IDs remain evidence-only. |
 | Medium | Health reported only a generic status. | Readiness now distinguishes service version and database readiness without disclosing credentials or topology. |
 | Medium | The live clock could render a different second on the server and browser, causing a hydration error. | Initial render now uses a stable placeholder and starts the client clock after hydration; tablet browser verification is console-clean. |
@@ -65,5 +65,5 @@ Do not use Render’s free database for production time records. Production acce
 4. Deploy one instance with private PostgreSQL, TLS, generated secrets, and passing health checks.
 5. Execute and record an isolated backup restore.
 6. Run the automated test/build/smoke suite against the candidate deployment.
-7. Complete one parallel pay-period reconciliation against the existing payroll method before relying on Nanshe as the primary record.
+7. Complete one parallel pay-period reconciliation against the existing payroll method before relying on TimeClock as the primary record.
 8. Establish monitoring, incident ownership, retention, and a controlled procedure for corrections after payroll.

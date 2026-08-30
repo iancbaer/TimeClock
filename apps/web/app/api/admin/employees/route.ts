@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { nextEmployeeNumber } from "@nanshe/core";
+import { nextEmployeeNumber } from "@timeclock/core";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";

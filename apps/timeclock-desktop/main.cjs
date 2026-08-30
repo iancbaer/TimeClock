@@ -2,7 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
-app.setName("Nanshe");
+app.setName("TimeClock");
 let window;
 
 function configPath() {
@@ -10,7 +10,7 @@ function configPath() {
 }
 
 function readServerUrl() {
-  if (process.env.NANSHE_SERVER_URL) return process.env.NANSHE_SERVER_URL.replace(/\/$/, "");
+  if (process.env.TIMECLOCK_SERVER_URL) return process.env.TIMECLOCK_SERVER_URL.replace(/\/$/, "");
   try {
     return JSON.parse(fs.readFileSync(configPath(), "utf8")).serverUrl;
   } catch {
@@ -34,7 +34,7 @@ function showSettings(error = "") {
   window.loadFile(path.join(__dirname, "settings.html"), { query: Object.fromEntries(query) });
 }
 
-async function loadNanshe() {
+async function loadTimeClock() {
   const serverUrl = readServerUrl();
   if (!validServerUrl(serverUrl)) {
     showSettings();
@@ -43,7 +43,7 @@ async function loadNanshe() {
   try {
     await window.loadURL(serverUrl);
   } catch {
-    showSettings("Nanshe could not reach that service. Check the address and network, then try again.");
+    showSettings("TimeClock could not reach that service. Check the address and network, then try again.");
   }
 }
 
@@ -54,7 +54,7 @@ function createWindow() {
     minWidth: 680,
     minHeight: 600,
     backgroundColor: "#f1f2e9",
-    title: "Nanshe",
+    title: "TimeClock",
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -78,9 +78,9 @@ function createWindow() {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     {
-      label: "Nanshe",
+      label: "TimeClock",
       submenu: [
-        { label: "Reload", accelerator: "CmdOrCtrl+R", click: () => loadNanshe() },
+        { label: "Reload", accelerator: "CmdOrCtrl+R", click: () => loadTimeClock() },
         { label: "Connection settings", click: () => showSettings() },
         { type: "separator" },
         { role: "quit" },
@@ -89,7 +89,7 @@ function createWindow() {
     { role: "editMenu" },
     { role: "viewMenu" },
   ]));
-  void loadNanshe();
+  void loadTimeClock();
 }
 
 ipcMain.handle("save-server-url", async (_event, value) => {
@@ -99,7 +99,7 @@ ipcMain.handle("save-server-url", async (_event, value) => {
   }
   fs.mkdirSync(path.dirname(configPath()), { recursive: true });
   fs.writeFileSync(configPath(), JSON.stringify({ serverUrl }, null, 2), { mode: 0o600 });
-  await loadNanshe();
+  await loadTimeClock();
   return { ok: true };
 });
 

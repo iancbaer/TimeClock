@@ -1,5 +1,5 @@
 import type { Punch, PunchRevision } from "@prisma/client";
-import type { EffectivePunch } from "@nanshe/core";
+import type { EffectivePunch } from "@timeclock/core";
 import { DateTime } from "luxon";
 import { prisma } from "./db";
 

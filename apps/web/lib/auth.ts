@@ -6,7 +6,7 @@ import { HttpError } from "./http";
 import { failedAuthenticationGuard } from "./rate-limit";
 
 const COOKIE_NAME = "steward-admin";
-const SESSION_ISSUER = "nanshe";
+const SESSION_ISSUER = "timeclock";
 const SESSION_AUDIENCE = "steward-admin";
 const DUMMY_HASH = "$2b$12$1qmj8y1xzSrZKJpjeSaAluuPrKSGIxQCqChM6QF4Y.cwcV9P.KK8e";
 

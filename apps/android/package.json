@@ -1,10 +1,11 @@
 {
-  "name": "@nanshe/android",
+  "name": "@timeclock/android",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "sync": "npm run build --workspace @nanshe/kiosk && cap sync android",
-    "add": "npm run build --workspace @nanshe/kiosk && cap add android",
+    "sync": "npm run build --workspace @timeclock/kiosk && cap sync android",
+    "add": "npm run build --workspace @timeclock/kiosk && cap add android",
+    "icons": "node scripts/generate-icons.mjs",
     "open": "cap open android",
     "lint": "tsc --noEmit"
   },
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "8.4.2",
+    "sharp": "0.35.4",
     "typescript": "5.9.3"
   }
 }

@@ -3,11 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: process.env.NEXT_PUBLIC_APP_NAME ?? "Nanshe",
-    template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME ?? "Nanshe"}`,
+    default: process.env.NEXT_PUBLIC_APP_NAME ?? "TimeClock",
+    template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME ?? "TimeClock"}`,
   },
   description: "Worker-protective timekeeping that preserves every hour worked in an accurate, auditable record.",
-  applicationName: "Nanshe",
+  applicationName: "TimeClock",
   robots: { index: false, follow: false },
 };
 

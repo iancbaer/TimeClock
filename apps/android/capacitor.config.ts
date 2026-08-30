@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.iancbaer.nanshe",
-  appName: "Nanshe",
+  appId: "com.iancbaer.timeclock",
+  appName: "TimeClock",
   webDir: "../kiosk/dist",
   backgroundColor: "#f1f2e9",
   android: {

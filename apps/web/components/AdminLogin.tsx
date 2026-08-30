@@ -35,7 +35,7 @@ export function AdminLogin() {
   return (
     <main className="centered-page">
       <form className="panel admin-login" onSubmit={submit}>
-        <Link className="back-link" href="/">← Return to Nanshe</Link>
+        <Link className="back-link" href="/">← Return to TimeClock</Link>
         <div className="panel-heading">
           <p className="eyebrow">Owner portal</p>
           <h1>Steward</h1>

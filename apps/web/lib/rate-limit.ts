@@ -16,9 +16,9 @@ interface FailurePolicy {
   code: string;
 }
 
-const globalRateState = globalThis as unknown as { nansheAuthenticationFailures?: Map<string, FailureBucket> };
-const failures = globalRateState.nansheAuthenticationFailures ?? new Map<string, FailureBucket>();
-globalRateState.nansheAuthenticationFailures = failures;
+const globalRateState = globalThis as unknown as { timeclockAuthenticationFailures?: Map<string, FailureBucket> };
+const failures = globalRateState.timeclockAuthenticationFailures ?? new Map<string, FailureBucket>();
+globalRateState.timeclockAuthenticationFailures = failures;
 
 function clientSource(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();

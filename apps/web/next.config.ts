@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@nanshe/core"],
+  transpilePackages: ["@timeclock/core"],
   async headers() {
     return [
       {

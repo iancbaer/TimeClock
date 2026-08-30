@@ -96,7 +96,7 @@ export function calculateTimesheet(
   const periodStart = DateTime.fromISO(settings.payPeriodStart, { zone }).startOf("day");
   if (!periodStart.isValid) throw new Error("Invalid pay period start date.");
   const periodDays = settings.payPeriodDays ?? 14;
-  if (periodDays !== 14) throw new Error("Nanshe currently requires a 14-day pay period.");
+  if (periodDays !== 14) throw new Error("TimeClock currently requires a 14-day pay period.");
   const periodEndExclusive = periodStart.plus({ days: periodDays });
   const asOf = settings.asOf ? DateTime.fromJSDate(new Date(settings.asOf), { zone }) : DateTime.now().setZone(zone);
   const punches = inputPunches

@@ -1,4 +1,4 @@
-import { allowedPunchTypes } from "@nanshe/core";
+import { allowedPunchTypes } from "@timeclock/core";
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/http";
 import { authenticateEmployeeNumber, createKioskSession } from "@/lib/kiosk-auth";

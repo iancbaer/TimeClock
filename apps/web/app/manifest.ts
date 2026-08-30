@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nanshe",
-    short_name: "Nanshe",
+    name: "TimeClock",
+    short_name: "TimeClock",
     description: "Accurate, auditable worker timekeeping and correction requests.",
     start_url: "/",
     display: "standalone",

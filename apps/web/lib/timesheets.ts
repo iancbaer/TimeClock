@@ -1,4 +1,4 @@
-import { calculateTimesheet, payPeriodContaining } from "@nanshe/core";
+import { calculateTimesheet, payPeriodContaining } from "@timeclock/core";
 import { DateTime } from "luxon";
 import { prisma } from "./db";
 import { HttpError } from "./http";
@@ -72,7 +72,7 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
     corrections,
     report: {
       generatedAt: new Date().toISOString(),
-      calculationVersion: "NANSHE-CALCULATION-1",
+      calculationVersion: "TIMECLOCK-CALCULATION-1",
       approvalState: "DRAFT_REVIEW_RECORD",
     },
   };

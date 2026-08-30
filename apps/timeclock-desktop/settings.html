@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect Nanshe</title>
+    <title>Connect TimeClock</title>
     <style>
       :root { color:#172729; background:#f1f2e9; font-family:Inter,system-ui,sans-serif; }
       * { box-sizing:border-box; } body { display:grid;min-height:100vh;margin:0;place-items:center;padding:24px; }
@@ -16,12 +16,12 @@
     </style>
   </head>
   <body><main>
-    <div class="mark">N</div>
+    <div class="mark">T</div>
     <p style="color:#1d675f;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:20px 0 4px">Worker timekeeping</p>
-    <h1 style="margin-top:0">Connect Nanshe</h1>
-    <p>Nanshe protects an accurate, auditable record so every hour worked can be reviewed and paid.</p>
+    <h1 style="margin-top:0">Connect TimeClock</h1>
+    <p>TimeClock protects an accurate, auditable record so every hour worked can be reviewed and paid.</p>
     <div id="error" class="error" hidden></div>
-    <form id="form"><label>Nanshe service address<input id="url" type="url" placeholder="https://nanshe.example.com" required /></label><button>Save and connect</button></form>
+    <form id="form"><label>TimeClock service address<input id="url" type="url" placeholder="https://timeclock.example.com" required /></label><button>Save and connect</button></form>
     <small>HTTPS is required except when connecting to localhost for development.</small>
   </main>
   <script>
@@ -31,7 +31,7 @@
     if (params.get("error")) { error.textContent = params.get("error"); error.hidden = false; }
     document.querySelector("#form").addEventListener("submit", async (event) => {
       event.preventDefault(); error.hidden = true;
-      const result = await window.nansheDesktop.saveServerUrl(input.value);
+      const result = await window.timeclockDesktop.saveServerUrl(input.value);
       if (!result.ok) { error.textContent = result.error; error.hidden = false; }
     });
   </script></body>

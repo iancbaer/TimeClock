@@ -5,13 +5,13 @@ This document describes behavior implemented in the current repository. Recommen
 ## System architecture
 
 ```text
-Nanshe web kiosk ───────────────┐
-Nanshe Android/Capacitor kiosk ─┼── HTTPS ── Next.js API ── PostgreSQL
-Nanshe Ubuntu worker app ───────┤                │
+TimeClock web kiosk ───────────────┐
+TimeClock Android/Capacitor kiosk ─┼── HTTPS ── Next.js API ── PostgreSQL
+TimeClock Ubuntu worker app ───────┤                │
 Steward web/desktop portal ─────┘          derived reports
 ```
 
-Nanshe is worker-facing. Steward is owner/manager-facing and lives at `/admin`. Both use one central API and PostgreSQL database. Android bundles the Nanshe interface but never embeds company or worker data. Desktop packages are web-service clients, not independent databases.
+TimeClock is worker-facing. Steward is owner/manager-facing and lives at `/admin`. Both use one central API and PostgreSQL database. Android bundles the TimeClock interface but never embeds company or worker data. Desktop packages are web-service clients, not independent databases.
 
 The server owns time, authentication decisions, valid punch state, original punches, corrections, calculations, and audit events. Clients are untrusted presentation layers.
 
@@ -19,11 +19,11 @@ The server owns time, authentication decisions, valid punch state, original punc
 
 ### Worker identification and session
 
-1. Nanshe sends one four-digit employee ID to `POST /api/kiosk/session` over HTTPS.
+1. TimeClock sends one four-digit employee ID to `POST /api/kiosk/session` over HTTPS.
 2. The server finds that unique active employee and returns a signed, 10-minute worker-session token plus exactly one allowed next action.
 3. The client clears the entered ID and keeps only the token in volatile memory.
 4. Punch and correction APIs accept the short-lived bearer token.
-5. Nanshe discards the token after a successful action, successful correction request, one minute of inactivity, manual completion, refresh, or app closure.
+5. TimeClock discards the token after a successful action, successful correction request, one minute of inactivity, manual completion, refresh, or app closure.
 
 ### Punch capture
 
@@ -43,7 +43,7 @@ Workers submit correction requests; they never overwrite punches. A Steward user
 | Field | Meaning |
 | --- | --- |
 | `id` | Singleton settings identity. |
-| `companyName` | Organization label shown in Nanshe and reports. |
+| `companyName` | Organization label shown in TimeClock and reports. |
 | `timeZone` | IANA zone used for display, day boundaries, and pay periods. |
 | `payPeriodAnchor` | Known first date of an aligned 14-day period. |
 | `workweekStartsOn` | Seven-day workweek start, 1–7. |

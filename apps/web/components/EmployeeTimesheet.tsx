@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDuration } from "@nanshe/core";
+import { formatDuration } from "@timeclock/core";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -207,7 +207,7 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
             <span>Employee attestation ____________________ Date __________</span>
             <span>Manager attestation _____________________ Date __________</span>
           </footer>
-          <p className="attestation-note">Sign only after reviewing this packet and resolving material flags or corrections. Blank lines are intentional; Nanshe does not fabricate signatures or approval.</p>
+          <p className="attestation-note">Sign only after reviewing this packet and resolving material flags or corrections. Blank lines are intentional; TimeClock does not fabricate signatures or approval.</p>
         </article>
         </>
       )}

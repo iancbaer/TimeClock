@@ -1,5 +1,5 @@
 {
-  "name": "nanshe",
+  "name": "timeclock",
   "version": "1.0.0",
   "private": true,
   "description": "Employee-friendly time clock with immutable punches, biweekly time sheets, and correction requests.",
@@ -8,17 +8,17 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace @nanshe/core && npm run build --workspace @nanshe/web",
-    "dev": "npm run dev --workspace @nanshe/web",
+    "build": "npm run build --workspace @timeclock/core && npm run build --workspace @timeclock/web",
+    "dev": "npm run dev --workspace @timeclock/web",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspace @nanshe/core && npm run test --workspace @nanshe/web",
-    "typecheck": "npm run build --workspace @nanshe/core && npm run typecheck --workspace @nanshe/core && npm run typecheck --workspace @nanshe/web && npm run lint --workspace @nanshe/android",
-    "db:generate": "npm run db:generate --workspace @nanshe/web",
-    "db:migrate": "npm run db:migrate --workspace @nanshe/web",
-    "db:seed": "npm run db:seed --workspace @nanshe/web",
+    "test": "npm run test --workspace @timeclock/core && npm run test --workspace @timeclock/web",
+    "typecheck": "npm run build --workspace @timeclock/core && npm run typecheck --workspace @timeclock/core && npm run typecheck --workspace @timeclock/web && npm run lint --workspace @timeclock/android",
+    "db:generate": "npm run db:generate --workspace @timeclock/web",
+    "db:migrate": "npm run db:migrate --workspace @timeclock/web",
+    "db:seed": "npm run db:seed --workspace @timeclock/web",
     "steward:dist": "npm run dist --workspace @steward/desktop",
-    "nanshe:dist": "npm run dist --workspace @nanshe/desktop",
-    "android:sync": "npm run sync --workspace @nanshe/android",
+    "timeclock:dist": "npm run dist --workspace @timeclock/desktop",
+    "android:sync": "npm run sync --workspace @timeclock/android",
     "demo:provision": "node scripts/provision-synthetic-employees.mjs",
     "smoke": "node scripts/api-smoke.mjs"
   },

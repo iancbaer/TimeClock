@@ -160,7 +160,7 @@ export function AdminDashboard() {
           <p className="eyebrow">Owner portal · {settings?.companyName ?? "Your organization"}</p>
           <h1>Steward</h1>
         </div>
-        <nav><Link href="/">Nanshe worker app</Link><button className="button quiet" onClick={signOut}>Sign out</button></nav>
+        <nav><Link href="/">TimeClock worker app</Link><button className="button quiet" onClick={signOut}>Sign out</button></nav>
       </header>
 
       {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
@@ -189,7 +189,7 @@ export function AdminDashboard() {
           </div>
           <form className="inline-form" onSubmit={addEmployee}>
             <h3>Add employee</h3>
-            <p className="form-help">Workers enter this four-digit ID on the Nanshe keypad.</p>
+            <p className="form-help">Workers enter this four-digit ID on the TimeClock keypad.</p>
             <div className="form-grid">
               <label>Official employee number<input inputMode="numeric" pattern="1[0-9]{3}" minLength={4} maxLength={4} value={newEmployee.employeeNumber} onChange={(event) => setNewEmployee({ ...newEmployee, employeeNumber: event.target.value.replace(/\D/g, "").slice(0, 4) })} required /></label>
               <label>First name<input value={newEmployee.firstName} onChange={(event) => setNewEmployee({ ...newEmployee, firstName: event.target.value })} required /></label>

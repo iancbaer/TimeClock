@@ -7,7 +7,7 @@
     "name": "Ian Baer",
     "email": "iancbaer@users.noreply.github.com"
   },
-  "homepage": "https://github.com/iancbaer/Nanshe",
+  "homepage": "https://github.com/iancbaer/TimeClock",
   "desktopName": "steward.desktop",
   "main": "main.cjs",
   "scripts": {

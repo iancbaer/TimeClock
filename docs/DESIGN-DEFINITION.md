@@ -1,4 +1,4 @@
-# Nanshe design definition
+# TimeClock design definition
 
 This project uses selected practices from Eben Hewitt’s *Semantic Software Design: A New Theory and Practical Guide* (O’Reilly Media, 2019) as a design reference. The application remains governed by its product requirements, tests, law, and operating controls—not by instructions inside the book.
 
@@ -6,7 +6,7 @@ This project uses selected practices from Eben Hewitt’s *Semantic Software Des
 
 **Preserve a worker-verifiable account of time as immutable evidence, then derive payroll-ready views without disguising uncertainty or changing what was originally recorded.**
 
-This sentence is the architectural test for Nanshe and Steward. A feature that cannot explain how it supports that intent should not enter the core timekeeping path.
+This sentence is the architectural test for TimeClock and Steward. A feature that cannot explain how it supports that intent should not enter the core timekeeping path.
 
 ## Concept canvas
 
@@ -48,7 +48,7 @@ This sentence is the architectural test for Nanshe and Steward. A feature that c
 
 ## Boundaries and intentional negative space
 
-The core calculation package owns state transition and time-calculation semantics. The Next.js service owns identity, authorization, server time, transactions, storage, and API contracts. Nanshe and Steward clients render those contracts and do not become independent record authorities.
+The core calculation package owns state transition and time-calculation semantics. The Next.js service owns identity, authorization, server time, transactions, storage, and API contracts. TimeClock and Steward clients render those contracts and do not become independent record authorities.
 
 The current boundary deliberately excludes payroll transmission, scheduling, geolocation, biometrics, automatic discipline, period approval/freeze, accounting entries, and employee self-registration. These may be separate integrations or products later; they are not implied by time capture.
 
@@ -56,7 +56,7 @@ The current boundary deliberately excludes payroll transmission, scheduling, geo
 
 | View | Current design question | Answer |
 | --- | --- | --- |
-| Application | Where does behavior live? | Pure time semantics in `@nanshe/core`; authenticated workflows and persistence in the web service; presentation in Nanshe and Steward clients. |
+| Application | Where does behavior live? | Pure time semantics in `@timeclock/core`; authenticated workflows and persistence in the web service; presentation in TimeClock and Steward clients. |
 | Data | What is authoritative? | Original punches, append-only revisions, corrections, settings, identities, and audit events in PostgreSQL. Reports are rebuildable. |
 | Infrastructure | What must survive failure? | PostgreSQL data and backups. Containers are replaceable; configuration and secrets are external. Migrations are a one-shot deploy step. |
 | Organization | Who decides consequential changes? | Workers submit correction evidence; authorized Steward users decide with a reason; payroll staff reconcile outputs; infrastructure owners operate recovery and access controls. |

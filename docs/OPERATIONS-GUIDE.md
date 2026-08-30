@@ -15,17 +15,17 @@ Review each pending correction against schedules and available records. Approval
 
 ### Configure an Android kiosk
 
-On first launch, enter the central HTTPS Nanshe service address. After setup, configuration is absent from the employee flow. A manager can press and hold the Nanshe mark for four seconds to reopen connection settings. This gesture is not an authentication control; physical kiosk access should be managed separately.
+On first launch, enter the central HTTPS TimeClock service address. After setup, configuration is absent from the employee flow. A manager can press and hold the TimeClock mark for four seconds to reopen connection settings. This gesture is not an authentication control; physical kiosk access should be managed separately.
 
 ## Worker kiosk guide
 
 1. Tap the large numeric keypad to enter your four-digit employee ID. Android’s keyboard does not open.
 2. Tap **Continue**.
 3. Confirm your name and the single action shown: **Clock in** when out, or **Clock out** when in.
-4. After a punch, read the confirmation. Nanshe returns to the employee ID screen automatically.
+4. After a punch, read the confirmation. TimeClock returns to the employee ID screen automatically.
 5. For a missed or wrong punch, choose **Correct my time record**, explain the requested change, and submit. The manager reviews it; the original remains preserved.
 
-Use **Done** when leaving without an action. The worker screen also closes after one minute without activity. Paid rest breaks stay clocked in. For an unpaid meal, clock out when it begins and clock back in when work resumes. Nanshe makes no automatic deductions.
+Use **Done** when leaving without an action. The worker screen also closes after one minute without activity. Paid rest breaks stay clocked in. For an unpaid meal, clock out when it begins and clock back in when work resumes. TimeClock makes no automatic deductions.
 
 ## Backup and restore
 
@@ -34,14 +34,14 @@ Current Docker deployment stores PostgreSQL in the named `timeclock-postgres` vo
 Create a logical backup from a scheduled, access-controlled host process:
 
 ```bash
-docker compose exec -T database pg_dump -U timeclock -d timeclock --format=custom > nanshe-YYYY-MM-DD.dump
+docker compose exec -T database pg_dump -U timeclock -d timeclock --format=custom > timeclock-YYYY-MM-DD.dump
 ```
 
 Test restoration into a separate empty database/environment before relying on a backup:
 
 ```bash
-createdb nanshe_restore_test
-pg_restore --clean --if-exists --no-owner --dbname=nanshe_restore_test nanshe-YYYY-MM-DD.dump
+createdb timeclock_restore_test
+pg_restore --clean --if-exists --no-owner --dbname=timeclock_restore_test timeclock-YYYY-MM-DD.dump
 ```
 
 The second example assumes PostgreSQL client tools and a disposable local test database. Never run `--clean` against production. Encrypt backup files, restrict access, maintain off-host copies, and document recovery time and recovery point objectives.

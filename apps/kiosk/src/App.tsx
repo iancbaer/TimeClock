@@ -55,8 +55,8 @@ function Keypad({ value, onChange, submit, busy }: { value: string; onChange: (v
 }
 
 export function App() {
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("nanshe-server") ?? "");
-  const [setupOpen, setSetupOpen] = useState(() => !localStorage.getItem("nanshe-server"));
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("timeclock-server") ?? "");
+  const [setupOpen, setSetupOpen] = useState(() => !localStorage.getItem("timeclock-server"));
   const [serverDraft, setServerDraft] = useState(serverUrl);
   const [employeeId, setEmployeeId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
@@ -100,7 +100,7 @@ export function App() {
     if (!normalized) { setNotice({ kind: "error", text: "Enter an HTTPS server address. HTTP is allowed only for local development." }); setBusy(false); return; }
     try {
       await data(await fetch(`${normalized}/api/health`, { cache: "no-store" }));
-      localStorage.setItem("nanshe-server", normalized); setServerUrl(normalized); setSetupOpen(false); returnToCode({ kind: "success", text: "Nanshe is connected and ready." });
+      localStorage.setItem("timeclock-server", normalized); setServerUrl(normalized); setSetupOpen(false); returnToCode({ kind: "success", text: "TimeClock is connected and ready." });
     } catch (error) { setNotice({ kind: "error", text: error instanceof Error ? `Could not connect: ${error.message}` : "Could not connect." }); }
     finally { setBusy(false); }
   }
@@ -145,15 +145,15 @@ export function App() {
   function cancelConfigurationHold() { if (configurationTimer.current !== null) window.clearTimeout(configurationTimer.current); configurationTimer.current = null; }
 
   if (setupOpen) return <main className="shell setup-shell"><form className="panel setup" onSubmit={saveServer}>
-    <p className="eyebrow">Manager configuration</p><h1>Connect this tablet</h1><p className="muted">Enter the HTTPS address for the Nanshe service. Only this address is stored on the device.</p>
+    <p className="eyebrow">Manager configuration</p><h1>Connect this tablet</h1><p className="muted">Enter the HTTPS address for the TimeClock service. Only this address is stored on the device.</p>
     {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
-    <label>Server address<input type="url" value={serverDraft} onChange={(event) => setServerDraft(event.target.value)} placeholder="https://nanshe.example.com" required /></label>
+    <label>Server address<input type="url" value={serverDraft} onChange={(event) => setServerDraft(event.target.value)} placeholder="https://timeclock.example.com" required /></label>
     <button className="button primary" disabled={busy}>{busy ? "Testing connection…" : "Save and connect"}</button>
     {serverUrl && <button className="button quiet" type="button" onClick={() => setSetupOpen(false)}>Cancel</button>}
   </form></main>;
 
   return <main className="shell">
-    <header className="brand"><button className="brand-mark-button" onPointerDown={startConfigurationHold} onPointerUp={cancelConfigurationHold} onPointerCancel={cancelConfigurationHold} onPointerLeave={cancelConfigurationHold} onContextMenu={(event) => event.preventDefault()} aria-label="Nanshe"><span>N</span></button><div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>Nanshe</h1></div></header>
+    <header className="brand"><button className="brand-mark-button" onPointerDown={startConfigurationHold} onPointerUp={cancelConfigurationHold} onPointerCancel={cancelConfigurationHold} onPointerLeave={cancelConfigurationHold} onContextMenu={(event) => event.preventDefault()} aria-label="TimeClock"><span>T</span></button><div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>TimeClock</h1></div></header>
     <section className="clock"><p>{dateTime.format(now).split(" at ")[0]}</p><strong>{dateTime.format(now).split(" at ")[1]}</strong></section>
     {notice && <div className={`notice ${notice.kind}`} role="status">{notice.text}</div>}
     {!session ? <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
@@ -162,7 +162,7 @@ export function App() {
     </form> : <div className="grid">
       <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number">Employee ID {session.employee.employeeNumber}</p></div><button className="button quiet" onClick={() => returnToCode()}>Not me</button></div>
         <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>Confirm {labels[type].toLowerCase()}</strong><small>{type === "WORK_IN" ? "You are currently clocked out" : "You are currently clocked in"}</small></button>)}</div>
-        <p className="break"><b>No automatic deductions:</b> Nanshe counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
+        <p className="break"><b>No automatic deductions:</b> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
       </section>
       <section className="panel recent"><p className="eyebrow">Your record</p><h2>Recently recorded time</h2><ol>{session.recentPunches.length === 0 && <li className="empty">No punches yet.</li>}{session.recentPunches.map((item) => <li key={item.id}><span>{labels[item.type]}</span><time>{new Intl.DateTimeFormat("en-US", { timeZone: session.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.occurredAt))}</time>{item.revised && <small>Corrected; original preserved</small>}</li>)}</ol>
         <button className="button secondary" onClick={() => setCorrectionOpen((open) => !open)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>
