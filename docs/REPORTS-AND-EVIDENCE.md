@@ -33,7 +33,7 @@ Detailed state-machine and edge-case invariants are in [CALCULATION-CONTRACT.md]
 
 ### CSV
 
-The CSV contains document purpose/status, generation metadata, official employee number, internal record identity, period bounds, day-level punches and totals, flags, period totals, and correction history. It is UTF-8, spreadsheet-compatible, and generated on demand from current authoritative data. It does not contain clock codes or password material.
+The CSV contains document purpose/status, generation metadata, employee ID, internal record identity, period bounds, day-level punches and totals, flags, period totals, and correction history. It is UTF-8, spreadsheet-compatible, and generated on demand from current authoritative data. It does not contain password material.
 
 ### Print/PDF
 

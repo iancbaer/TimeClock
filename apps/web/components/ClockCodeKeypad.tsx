@@ -2,16 +2,16 @@
 
 import { useEffect } from "react";
 
-interface ClockCodeKeypadProps {
+interface EmployeeIdKeypadProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   busy: boolean;
 }
 
-export function ClockCodeKeypad({ value, onChange, onSubmit, busy }: ClockCodeKeypadProps) {
+export function EmployeeIdKeypad({ value, onChange, onSubmit, busy }: EmployeeIdKeypadProps) {
   function addDigit(digit: string) {
-    if (!busy && value.length < 10) onChange(`${value}${digit}`);
+    if (!busy && value.length < 4) onChange(`${value}${digit}`);
   }
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function ClockCodeKeypad({ value, onChange, onSubmit, busy }: ClockCodeKe
       } else if (event.key === "Backspace" || event.key === "Delete" || event.key === "Escape") {
         event.preventDefault();
         onChange("");
-      } else if (event.key === "Enter" && value.length >= 6 && !busy) {
+      } else if (event.key === "Enter" && value.length === 4 && !busy) {
         event.preventDefault();
         onSubmit();
       }
@@ -33,18 +33,18 @@ export function ClockCodeKeypad({ value, onChange, onSubmit, busy }: ClockCodeKe
 
   return (
     <div className="clock-code-entry">
-      <output className="clock-code-display" aria-label={`${value.length} clock code digits entered`} aria-live="polite">
-        {value ? "●".repeat(value.length) : <span>Enter your private code</span>}
+      <output className="clock-code-display" aria-label={`${value.length} employee ID digits entered`} aria-live="polite">
+        {value || <span>Enter your 4-digit ID</span>}
       </output>
-      <div className="numeric-keypad" aria-label="Numeric clock code keypad">
+      <div className="numeric-keypad" aria-label="Numeric employee ID keypad">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
           <button type="button" className="keypad-key" onClick={() => addDigit(digit)} disabled={busy} key={digit}>{digit}</button>
         ))}
         <button type="button" className="keypad-key utility" onClick={() => onChange("")} disabled={busy || !value}>Clear</button>
         <button type="button" className="keypad-key" onClick={() => addDigit("0")} disabled={busy}>0</button>
-        <button type="submit" className="keypad-key continue" disabled={busy || value.length < 6}>{busy ? "Wait…" : "Continue"}</button>
+        <button type="submit" className="keypad-key continue" disabled={busy || value.length !== 4}>{busy ? "Wait…" : "Continue"}</button>
       </div>
-      <p className="code-privacy-note">Your code is masked, is not saved on this device, and is cleared as soon as you continue.</p>
+      <p className="code-privacy-note">Your employee ID is cleared when you finish or after a recorded punch.</p>
     </div>
   );
 }

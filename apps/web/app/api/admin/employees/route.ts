@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { nextEmployeeNumber } from "@nanshe/core";
 import { requireAdmin } from "@/lib/auth";
-import { createClockCodeCredentials } from "@/lib/clock-code";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";
 import { employeeCreateSchema } from "@/lib/schemas";
@@ -12,10 +11,10 @@ export async function GET() {
     await requireAdmin();
     const employees = await prisma.employee.findMany({
       orderBy: [{ active: "desc" }, { employeeNumber: "asc" }],
-      select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true, createdAt: true, clockCodeHash: true },
+      select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true, createdAt: true },
     });
     return NextResponse.json({
-      employees: employees.map(({ clockCodeHash, ...employee }) => ({ ...employee, codeConfigured: Boolean(clockCodeHash) })),
+      employees,
       suggestedEmployeeNumber: nextEmployeeNumber(employees.map((employee) => employee.employeeNumber)),
     });
   } catch (error) {
@@ -27,11 +26,9 @@ export async function POST(request: Request) {
   try {
     const admin = await requireAdmin();
     const input = employeeCreateSchema.parse(await request.json());
-    const { clockCode, ...employeeFields } = input;
-    const credentials = await createClockCodeCredentials(clockCode);
     const employee = await prisma.$transaction(async (tx) => {
       const created = await tx.employee.create({
-        data: { ...employeeFields, ...credentials },
+        data: input,
         select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true },
       });
       await tx.auditEvent.create({
@@ -41,7 +38,7 @@ export async function POST(request: Request) {
           actorId: admin.id,
           entityType: "Employee",
           entityId: created.id,
-          metadata: { changedFields: ["employeeNumber", "firstName", "lastName", "clockCode"] },
+          metadata: { changedFields: ["employeeNumber", "firstName", "lastName"] },
         },
       });
       return created;
@@ -49,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ employee }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return errorResponse(new HttpError(409, "That employee number or private clock code is already assigned."));
+      return errorResponse(new HttpError(409, "That employee number is already assigned."));
     }
     return errorResponse(error);
   }

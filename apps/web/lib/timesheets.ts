@@ -56,7 +56,6 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
       firstName: employee.firstName,
       lastName: employee.lastName,
       active: employee.active,
-      codeConfigured: Boolean(employee.clockCodeHash),
     },
     settings: {
       companyName: settings.companyName,

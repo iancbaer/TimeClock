@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type PunchType = "WORK_IN" | "MEAL_START" | "MEAL_END" | "WORK_OUT";
+type PunchType = "WORK_IN" | "WORK_OUT";
+type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
 interface Session {
   employee: { employeeNumber: string; firstName: string; lastName: string };
   sessionToken: string;
   companyName: string;
   timeZone: string;
   allowedPunchTypes: PunchType[];
-  recentPunches: Array<{ id: string; type: PunchType; occurredAt: string; revised?: boolean }>;
+  recentPunches: Array<{ id: string; type: RecordPunchType; occurredAt: string; revised?: boolean }>;
 }
 
-const labels: Record<PunchType, string> = { WORK_IN: "Clock in", MEAL_START: "Start meal", MEAL_END: "End meal", WORK_OUT: "Clock out" };
+const labels: Record<RecordPunchType, string> = { WORK_IN: "Clock in", MEAL_START: "Start meal", MEAL_END: "End meal", WORK_OUT: "Clock out" };
 
 function normalizedServer(value: string): string | null {
   try {
@@ -31,25 +32,25 @@ async function data(response: Response) {
 }
 
 function Keypad({ value, onChange, submit, busy }: { value: string; onChange: (value: string) => void; submit: () => void; busy: boolean }) {
-  function digit(valueToAdd: string) { if (!busy && value.length < 10) onChange(`${value}${valueToAdd}`); }
+  function digit(valueToAdd: string) { if (!busy && value.length < 4) onChange(`${value}${valueToAdd}`); }
   useEffect(() => {
     function key(event: KeyboardEvent) {
       if (/^\d$/.test(event.key)) { event.preventDefault(); digit(event.key); }
       else if (["Backspace", "Delete", "Escape"].includes(event.key)) { event.preventDefault(); onChange(""); }
-      else if (event.key === "Enter" && value.length >= 6 && !busy) { event.preventDefault(); submit(); }
+      else if (event.key === "Enter" && value.length === 4 && !busy) { event.preventDefault(); submit(); }
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   });
   return <div className="clock-code-entry">
-    <output className="clock-code-display" aria-label={`${value.length} clock code digits entered`} aria-live="polite">{value ? "●".repeat(value.length) : <span>Enter your private code</span>}</output>
-    <div className="numeric-keypad" aria-label="Numeric clock code keypad">
+    <output className="clock-code-display" aria-label={`${value.length} employee ID digits entered`} aria-live="polite">{value || <span>Enter your 4-digit ID</span>}</output>
+    <div className="numeric-keypad" aria-label="Numeric employee ID keypad">
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((number) => <button className="keypad-key" type="button" onClick={() => digit(number)} disabled={busy} key={number}>{number}</button>)}
       <button className="keypad-key utility" type="button" onClick={() => onChange("")} disabled={busy || !value}>Clear</button>
       <button className="keypad-key" type="button" onClick={() => digit("0")} disabled={busy}>0</button>
-      <button className="keypad-key continue" disabled={busy || value.length < 6}>{busy ? "Wait…" : "Continue"}</button>
+      <button className="keypad-key continue" disabled={busy || value.length !== 4}>{busy ? "Wait…" : "Continue"}</button>
     </div>
-    <p className="code-privacy-note">Masked, never saved on this tablet, and cleared as soon as you continue.</p>
+    <p className="code-privacy-note">Your employee ID is cleared when you finish or after a recorded punch.</p>
   </div>;
 }
 
@@ -57,7 +58,7 @@ export function App() {
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("nanshe-server") ?? "");
   const [setupOpen, setSetupOpen] = useState(() => !localStorage.getItem("nanshe-server"));
   const [serverDraft, setServerDraft] = useState(serverUrl);
-  const [clockCode, setClockCode] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [sessionToken, setSessionToken] = useState("");
   const [now, setNow] = useState(new Date());
@@ -79,7 +80,7 @@ export function App() {
   }, []);
 
   const returnToCode = useCallback((nextNotice?: { kind: "error" | "success"; text: string }) => {
-    setSession(null); setSessionToken(""); setClockCode(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
+    setSession(null); setSessionToken(""); setEmployeeId(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
   }, []);
 
   useEffect(() => {
@@ -105,12 +106,12 @@ export function App() {
   }
 
   async function signIn() {
-    if (busy || clockCode.length < 6) return;
+    if (busy || employeeId.length !== 4) return;
     setBusy(true); setNotice(null);
     try {
-      const result = await data(await fetch(`${serverUrl}/api/kiosk/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clockCode }) })) as Session;
-      setSession(result); setSessionToken(result.sessionToken); setClockCode("");
-    } catch (error) { setClockCode(""); setNotice({ kind: "error", text: error instanceof Error ? error.message : "That code could not be checked." }); }
+      const result = await data(await fetch(`${serverUrl}/api/kiosk/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeNumber: employeeId }) })) as Session;
+      setSession(result); setSessionToken(result.sessionToken); setEmployeeId("");
+    } catch (error) { setEmployeeId(""); setNotice({ kind: "error", text: error instanceof Error ? error.message : "That employee ID could not be checked." }); }
     finally { setBusy(false); }
   }
 
@@ -120,9 +121,9 @@ export function App() {
     setBusy(true); setNotice(null); let completed = false;
     try {
       const result = await data(await fetch(`${serverUrl}/api/kiosk/punch`, { method: "POST", headers: { "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ type, idempotencyKey: crypto.randomUUID(), deviceLabel: "Android kiosk" }) }));
-      completed = true; scheduleReturn(`${labels[type]} recorded at ${new Date(result.punch.occurredAt).toLocaleTimeString()}. Returning to the private code screen…`);
+      completed = true; scheduleReturn(`${labels[type]} recorded at ${new Date(result.punch.occurredAt).toLocaleTimeString()}. Returning to the employee ID screen…`);
     } catch (error) {
-      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your clock code again." });
+      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
       else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Punch failed. Nothing was recorded." });
     } finally { if (!completed) setBusy(false); }
   }
@@ -131,9 +132,9 @@ export function App() {
     event.preventDefault(); setBusy(true); setNotice(null); let completed = false;
     try {
       await data(await fetch(`${serverUrl}/api/kiosk/corrections`, { method: "POST", headers: { "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ kind, targetPunchId: kind === "WRONG_TIME" ? targetPunchId || null : null, requestedType: kind === "MISSED_PUNCH" ? requestedType : null, requestedOccurredAt: kind !== "OTHER" && requestedAt ? new Date(requestedAt).toISOString() : null, note }) }));
-      completed = true; scheduleReturn("Correction request recorded for manager review. The original remains preserved. Returning to the private code screen…");
+      completed = true; scheduleReturn("Correction request recorded for manager review. The original remains preserved. Returning to the employee ID screen…");
     } catch (error) {
-      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your clock code again." });
+      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
       else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Request failed." });
     } finally { if (!completed) setBusy(false); }
   }
@@ -156,25 +157,25 @@ export function App() {
     <section className="clock"><p>{dateTime.format(now).split(" at ")[0]}</p><strong>{dateTime.format(now).split(" at ")[1]}</strong></section>
     {notice && <div className={`notice ${notice.kind}`} role="status">{notice.text}</div>}
     {!session ? <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
-      <p className="eyebrow">Your private time record</p><h2>Enter your clock code</h2><p className="muted">Use the keypad below. The code is never shown on this shared screen.</p>
-      <Keypad value={clockCode} onChange={setClockCode} submit={() => void signIn()} busy={busy} />
+      <p className="eyebrow">Employee timeclock</p><h2>Enter your employee ID</h2><p className="muted">Use your four-digit ID, starting with 1. Confirm the correct action on the next screen.</p>
+      <Keypad value={employeeId} onChange={setEmployeeId} submit={() => void signIn()} busy={busy} />
     </form> : <div className="grid">
-      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Your current options</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number">Employee {session.employee.employeeNumber}</p></div><button className="button quiet" onClick={() => returnToCode()}>Done</button></div>
-        <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>{labels[type]}</strong><small>{type === "MEAL_START" ? "Only when fully relieved" : "Secure server time"}</small></button>)}</div>
-        <p className="break"><b>Paid rest breaks:</b> remain clocked in. Use meal punches only for an unpaid, duty-free meal.</p>
+      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number">Employee ID {session.employee.employeeNumber}</p></div><button className="button quiet" onClick={() => returnToCode()}>Not me</button></div>
+        <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>Confirm {labels[type].toLowerCase()}</strong><small>{type === "WORK_IN" ? "You are currently clocked out" : "You are currently clocked in"}</small></button>)}</div>
+        <p className="break"><b>No automatic deductions:</b> Nanshe counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
       </section>
       <section className="panel recent"><p className="eyebrow">Your record</p><h2>Recently recorded time</h2><ol>{session.recentPunches.length === 0 && <li className="empty">No punches yet.</li>}{session.recentPunches.map((item) => <li key={item.id}><span>{labels[item.type]}</span><time>{new Intl.DateTimeFormat("en-US", { timeZone: session.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.occurredAt))}</time>{item.revised && <small>Corrected; original preserved</small>}</li>)}</ol>
         <button className="button secondary" onClick={() => setCorrectionOpen((open) => !open)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>
       </section>
-      {correctionOpen && <form className="panel correction" onSubmit={requestCorrection}><p className="eyebrow">Protect the record</p><h2>Tell us what your time should show</h2><p className="muted">The original remains available for review. This private screen closes after submission or inactivity.</p>
+      {correctionOpen && <form className="panel correction" onSubmit={requestCorrection}><p className="eyebrow">Protect the record</p><h2>Tell us what your time should show</h2><p className="muted">The original remains available for review. This screen closes after submission or inactivity.</p>
         <label>What happened?<select value={kind} onChange={(event) => setKind(event.target.value)}><option value="MISSED_PUNCH">I missed a punch</option><option value="WRONG_TIME">A punch has the wrong time</option><option value="OTHER">Something else</option></select></label>
         {kind === "WRONG_TIME" && <label>Which punch?<select value={targetPunchId} onChange={(event) => setTargetPunchId(event.target.value)} required><option value="">Choose a recent punch</option>{session.recentPunches.map((item) => <option value={item.id} key={item.id}>{labels[item.type]} — {new Date(item.occurredAt).toLocaleString()}</option>)}</select></label>}
-        {kind === "MISSED_PUNCH" && <label>Missed action<select value={requestedType} onChange={(event) => setRequestedType(event.target.value as PunchType)}>{Object.entries(labels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>}
+        {kind === "MISSED_PUNCH" && <label>Missed action<select value={requestedType} onChange={(event) => setRequestedType(event.target.value as PunchType)}><option value="WORK_IN">Clock in</option><option value="WORK_OUT">Clock out</option></select></label>}
         {kind !== "OTHER" && <label>Requested date and time<input type="datetime-local" value={requestedAt} onChange={(event) => setRequestedAt(event.target.value)} required /></label>}
         <label>Explanation<textarea rows={4} minLength={5} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} required /></label>
         <button className="button primary" disabled={busy}>{busy ? "Submitting…" : "Submit correction request"}</button>
       </form>}
     </div>}
-    <footer className="kiosk-footer">Original punches remain auditable. Use the private correction request if your record does not match your work.</footer>
+    <footer className="kiosk-footer">Original punches remain auditable. Use the correction request if your record does not match your work.</footer>
   </main>;
 }

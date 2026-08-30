@@ -1,16 +1,16 @@
 import { allowedPunchTypes } from "@nanshe/core";
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/http";
-import { authenticateClockCode, createKioskSession } from "@/lib/kiosk-auth";
+import { authenticateEmployeeNumber, createKioskSession } from "@/lib/kiosk-auth";
 import { effectiveRecentPunches } from "@/lib/punches";
-import { clockCodeSchema } from "@/lib/schemas";
+import { employeeIdSessionSchema } from "@/lib/schemas";
 import { getSettings } from "@/lib/settings";
 
 export async function POST(request: Request) {
   try {
-    const input = clockCodeSchema.parse(await request.json());
+    const input = employeeIdSessionSchema.parse(await request.json());
     const [employee, settings] = await Promise.all([
-      authenticateClockCode(request, input.clockCode),
+      authenticateEmployeeNumber(request, input.employeeNumber),
       getSettings(),
     ]);
     const punches = await effectiveRecentPunches(employee.id, settings.timeZone);

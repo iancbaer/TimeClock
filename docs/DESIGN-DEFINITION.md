@@ -12,18 +12,18 @@ This sentence is the architectural test for Nanshe and Steward. A feature that c
 
 ### Must accomplish
 
-- Let a worker record valid work and meal transitions quickly on a shared tablet.
+- Let a worker record valid in/out transitions quickly on a shared tablet.
 - Keep original events, approved interpretations, actor, reason, and time auditable.
 - Show the worker enough recent history to detect and request correction of an error.
 - Calculate two aligned workweeks consistently from server-owned time and declared settings.
-- Produce evidence that a manager can reconcile to payroll without exposing authentication secrets.
+- Produce evidence that a manager can reconcile to the employer’s time totals.
 
 ### Must avoid
 
-- Using a visible employee identifier as the worker’s authentication secret.
+- Describing a visible employee ID as strong authentication.
 - Altering original timestamps to make a report look clean.
 - Guessing missing work, meals, approvals, or signatures.
-- Embedding worker data or recoverable clock codes in a kiosk, package, log, export, or public repository.
+- Embedding real worker data, passwords, or access tokens in a kiosk, package, log, export, or public repository.
 - Adding location, biometric, photo, or activity surveillance to solve a time-record problem.
 
 ### Must fix when discovered
@@ -37,8 +37,7 @@ This sentence is the architectural test for Nanshe and Steward. A feature that c
 
 | Term | Exact meaning |
 | --- | --- |
-| Official employee number | A unique display/report identifier in the range `1001`–`1999`. It is not an authentication credential. |
-| Private clock code | A unique 6–10 digit authentication secret known to the worker and stored only as protected digests. |
+| Employee ID | A unique four-digit identifier in the range `1001`–`1999`, accepted at the supervised kiosk. It is not a password. |
 | Original punch | A server-timed event that is never updated or deleted through the application. |
 | Revision | An append-only, manager-authorized effective interpretation linked to a correction request. |
 | Effective punch | The original punch interpreted through its newest approved revision. |
@@ -66,7 +65,8 @@ The current boundary deliberately excludes payroll transmission, scheduling, geo
 
 | Decision | Product/domain justification | Engineering/operational justification |
 | --- | --- | --- |
-| Separate `employeeNumber` from `clockCode` | A number can feel official and appear on reports without becoming an easily guessed secret. | Authentication storage and rotation stay independent of stable identity and foreign keys. |
+| Use one employee ID at the kiosk | Workers can clock time with the minimum possible friction in a supervised ten-person workplace. | One indexed lookup creates a brief session; the documented privacy tradeoff is accepted instead of hidden complexity. |
+| Allow exactly one next action | The worker never has to reason about an invalid clock state. | Both UI and server derive the action from authoritative events; the server rejects duplicate in/in or out/out transitions. |
 | Keep original punches immutable | Workers and managers can see what was captured and what was later changed. | Append-only history supports deterministic recalculation, audit, and incident reconstruction. |
 | Add daily paid credit rather than round punch timestamps | The worker receives the favorable amount while actual events remain truthful. | Exact and payable values reconcile mathematically and can be tested separately. |
 | Use one app instance initially | It fits a ten-worker installation and avoids unnecessary distributed-state complexity. | The current source-based throttle is process-local; one instance keeps its behavior coherent until a shared limiter is added. |
@@ -78,13 +78,13 @@ The current boundary deliberately excludes payroll transmission, scheduling, geo
 - Invalid state transitions fail without writing a punch.
 - Database unavailability makes readiness return `503`; the platform must not route traffic to an unhealthy instance.
 - Missing or contradictory time produces flags and zero invented duration.
-- Failed authentication returns generic messages, never echoes submitted secrets, and is throttled.
+- Unknown IDs return generic messages without echoing the submitted value and are throttled.
 - A correction moved across a date boundary is selected by original or revised effective time and included only in its effective period.
 - A failed deploy leaves the last healthy application version serving traffic; database recovery relies on managed backups and tested restore procedures.
 
 ## Current implementation and deferred production controls
 
-Implemented now: official employee numbers, protected clock codes, single-instance rate limiting, immutable originals, append-only revisions, server time, idempotency, serializable punch writes, versioned migrations, readiness, Docker packaging, deployment blueprint, CSV, and printable evidence packets.
+Implemented now: employee IDs, strict alternating in/out state, single-instance unknown-ID throttling, immutable originals, append-only revisions, server time, idempotency, serializable punch writes, versioned migrations, readiness, Docker packaging, deployment blueprint, CSV, and printable evidence packets.
 
 Deferred production controls: MFA/SSO for Steward, shared rate limiting for multiple instances, explicit approved-period snapshots, automated backup restore drills, centralized metrics/alerts, independent security assessment, formal incident response, and payroll integration. Deferral is not a claim that these are unnecessary; they are production acceptance decisions.
 
@@ -94,7 +94,7 @@ Before production, assign an owner and target for each measure:
 
 - successful punch API rate and p95 response time;
 - rejected invalid transitions and duplicate-idempotency replays;
-- authentication throttle events without credential-body logging;
+- unknown-ID throttle events without request-body logging;
 - unresolved accuracy flags and correction age;
 - last successful database backup and last successful isolated restore;
 - application/database availability and failed deployment count;

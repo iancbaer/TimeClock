@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface SheetData {
-  employee: { id: string; employeeNumber: string; firstName: string; lastName: string; active: boolean; codeConfigured: boolean };
+  employee: { id: string; employeeNumber: string; firstName: string; lastName: string; active: boolean };
   settings: { companyName: string; timeZone: string; roundingMode: string; roundingIntervalMinutes: number };
   summary: {
     periodStart: string;
@@ -69,9 +69,6 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [clockCode, setClockCode] = useState("");
-  const [codeNotice, setCodeNotice] = useState("");
-  const [codeBusy, setCodeBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,28 +102,6 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
     window.history.replaceState(null, "", `?periodStart=${next}`);
   }
 
-  async function rotateClockCode(event: React.FormEvent) {
-    event.preventDefault();
-    setCodeBusy(true);
-    setCodeNotice("");
-    try {
-      const response = await fetch(`/api/admin/employees/${employeeId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clockCode }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not update the clock code.");
-      setClockCode("");
-      setCodeNotice("Private clock code updated. Give it directly to the employee; Steward will not display it again.");
-      await load();
-    } catch (caught) {
-      setCodeNotice(caught instanceof Error ? caught.message : "Could not update the clock code.");
-    } finally {
-      setCodeBusy(false);
-    }
-  }
-
   if (loading && !sheet) return <main className="admin-shell"><div className="loading-state">Building the two-week sheet…</div></main>;
 
   return (
@@ -143,12 +118,6 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
       {error && <div className="notice error">{error}</div>}
       {sheet && (
         <>
-        <form className="panel manager-access-card no-print" onSubmit={rotateClockCode}>
-          <div><p className="eyebrow">Worker access · Employee {sheet.employee.employeeNumber}</p><h2>{sheet.employee.codeConfigured ? "Rotate private clock code" : "Set private clock code"}</h2><p>The official employee number is not a sign-in credential. Set a separate private 6–10 digit code; it is saved as protected digests and cannot be recovered or displayed later.</p></div>
-          <label>New clock code<input type="password" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="new-password" value={clockCode} onChange={(event) => setClockCode(event.target.value.replace(/\D/g, "").slice(0, 10))} required /></label>
-          <button className="button secondary" disabled={codeBusy}>{codeBusy ? "Saving…" : "Save new code"}</button>
-          {codeNotice && <p className="manager-tool-notice" role="status">{codeNotice}</p>}
-        </form>
         <article className="timesheet-paper">
           <header className="sheet-title">
             <div><p className="eyebrow">{sheet.settings.companyName}</p><h1>Pay-period evidence packet</h1></div>

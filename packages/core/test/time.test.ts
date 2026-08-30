@@ -63,11 +63,20 @@ describe("employee-favorable pay credit", () => {
 });
 
 describe("clock state", () => {
-  it("permits clock out or meal start while working", () => {
-    expect(allowedPunchTypes([{ type: "WORK_IN", occurredAt: "2026-08-24T15:00:00Z" }])).toEqual([
-      "MEAL_START",
-      "WORK_OUT",
-    ]);
+  it("offers exactly one opposite action", () => {
+    expect(allowedPunchTypes([])).toEqual(["WORK_IN"]);
+    expect(allowedPunchTypes([{ type: "WORK_IN", occurredAt: "2026-08-24T15:00:00Z" }])).toEqual(["WORK_OUT"]);
+    expect(allowedPunchTypes([
+      { type: "WORK_IN", occurredAt: "2026-08-24T15:00:00Z" },
+      { type: "WORK_OUT", occurredAt: "2026-08-24T23:00:00Z" },
+    ])).toEqual(["WORK_IN"]);
+  });
+
+  it("treats historical meal punches as part of the same clocked-in shift", () => {
+    expect(allowedPunchTypes([
+      { type: "WORK_IN", occurredAt: "2026-08-24T15:00:00Z" },
+      { type: "MEAL_START", occurredAt: "2026-08-24T19:00:00Z" },
+    ])).toEqual(["WORK_OUT"]);
   });
 });
 

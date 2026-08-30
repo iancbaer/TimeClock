@@ -6,11 +6,8 @@
 
 1. Sign in to Steward at `/admin`.
 2. Assign the next unique official employee number. Steward suggests the first available number beginning with `1001`.
-3. Enter the worker’s name and assign a separate unique 6–10 digit private clock code. The official number is not a sign-in credential.
-4. Give the private code directly to that worker. Steward intentionally cannot display it later.
-5. If a code is forgotten or may be known by someone else, open the worker’s pay-period record and use **Rotate private clock code**.
-
-Migrated workers with `Clock code setup required` cannot use Nanshe until a manager assigns a new code. Do not reuse a legacy employee number or a shared departmental code.
+3. Enter the worker’s name and save.
+4. Give the worker their employee ID. IDs must be unique; the initial ten are `1001` through `1010`.
 
 ### Review corrections and payroll
 
@@ -22,16 +19,13 @@ On first launch, enter the central HTTPS Nanshe service address. After setup, co
 
 ## Worker kiosk guide
 
-1. Tap the large numeric keypad to enter your private clock code. The display shows masked dots and does not open Android’s keyboard.
+1. Tap the large numeric keypad to enter your four-digit employee ID. Android’s keyboard does not open.
 2. Tap **Continue**.
-3. Confirm your name, then choose the action shown:
-   - off work: **Clock in**;
-   - working: **Start meal** or **Clock out**;
-   - on meal: **End meal**.
-4. After a punch, read the confirmation. Nanshe returns to the private code screen automatically.
+3. Confirm your name and the single action shown: **Clock in** when out, or **Clock out** when in.
+4. After a punch, read the confirmation. Nanshe returns to the employee ID screen automatically.
 5. For a missed or wrong punch, choose **Correct my time record**, explain the requested change, and submit. The manager reviews it; the original remains preserved.
 
-Use **Done** when leaving without an action. The private screen also closes after one minute without activity. Paid rest breaks stay clocked in. Use meal punches only for unpaid, duty-free meals.
+Use **Done** when leaving without an action. The worker screen also closes after one minute without activity. Paid rest breaks stay clocked in. For an unpaid meal, clock out when it begins and clock back in when work resumes. Nanshe makes no automatic deductions.
 
 ## Backup and restore
 
@@ -60,7 +54,7 @@ Implemented behavior: no automatic time-record deletion, correction deletion, or
 
 Current implementation supports Docker Compose, one Next.js service, and PostgreSQL. It binds to localhost by default. For production:
 
-1. Generate separate high-entropy values for `AUTH_SECRET`, `CLOCK_CODE_PEPPER`, database, and Steward credentials.
+1. Generate high-entropy values for `AUTH_SECRET`, database, and Steward credentials.
 2. Put the app behind an HTTPS reverse proxy and expose only that proxy.
 3. Keep PostgreSQL private; encrypt disks and backups.
 4. Set only approved Capacitor origins in `KIOSK_ALLOWED_ORIGINS`.
@@ -73,14 +67,14 @@ These production controls are recommended; reverse proxying, off-host backup aut
 
 ### Recommended managed host: Render
 
-`render.yaml` defines the current small-employer target: one paid Docker web instance and one paid private PostgreSQL instance in Oregon. The Blueprint generates the signing secret and clock-code pepper, prompts for the initial Steward email/password, runs migrations and idempotent initialization before deploy, and uses `/api/health` for readiness.
+`render.yaml` defines the current small-employer target: one paid Docker web instance and one paid private PostgreSQL instance in Oregon. The Blueprint generates the signing secret, prompts for the initial Steward email/password, runs migrations and idempotent initialization before deploy, and uses `/api/health` for readiness.
 
 1. Fork or connect the public GitHub repository to an organization-controlled account.
 2. In Render, create a Blueprint from `render.yaml`.
-3. Enter a private Steward email and a strong unique password when prompted. Do not set `SEED_CLOCK_CODE` in production.
+3. Enter a private Steward email and a strong unique password when prompted. Do not enable `SEED_SYNTHETIC_EMPLOYEE` in production.
 4. Confirm the Blueprint selects one web instance and the paid PostgreSQL plan; do not downgrade the production database to free.
-5. After first deploy, sign in to Steward, set the real company label and pay-period settings, create workers, and deliver private codes out of band.
-6. Run `SMOKE_BASE_URL=https://your-service.example npm run smoke` only with a designated synthetic test worker and test manager—not a real worker credential.
+5. After first deploy, sign in to Steward, set the real company label and pay-period settings, and create workers with IDs `1001` onward.
+6. Run `SMOKE_BASE_URL=https://your-service.example SMOKE_EMPLOYEE_NUMBER=1999 npm run smoke` only with a designated synthetic test worker and test manager—not a real worker ID.
 7. Enable platform notifications, verify managed recovery, schedule a separate encrypted logical export, and complete an isolated restore exercise.
 8. Configure the Android/desktop clients with the final HTTPS service URL and restrict the device to kiosk use.
 

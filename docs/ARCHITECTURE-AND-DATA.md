@@ -11,18 +11,18 @@ Nanshe Ubuntu worker app ───────┤                │
 Steward web/desktop portal ─────┘          derived reports
 ```
 
-Nanshe is worker-facing. Steward is owner/manager-facing and lives at `/admin`. Both use one central API and PostgreSQL database. Android bundles the Nanshe interface but never embeds company data or worker secrets. Desktop packages are web-service clients, not independent databases.
+Nanshe is worker-facing. Steward is owner/manager-facing and lives at `/admin`. Both use one central API and PostgreSQL database. Android bundles the Nanshe interface but never embeds company or worker data. Desktop packages are web-service clients, not independent databases.
 
 The server owns time, authentication decisions, valid punch state, original punches, corrections, calculations, and audit events. Clients are untrusted presentation layers.
 
 ## Important data flows
 
-### Worker authentication
+### Worker identification and session
 
-1. Nanshe sends one masked 6–10 digit clock code to `POST /api/kiosk/session` over HTTPS.
-2. The server derives an HMAC-SHA-256 lookup using `CLOCK_CODE_PEPPER`, finds the unique employee, and verifies the code with bcrypt.
-3. On success the server returns a signed, 10-minute worker-session token. The client clears the code immediately and keeps only the token in volatile memory.
-4. Punch and correction APIs accept the short-lived bearer token, not the clock code.
+1. Nanshe sends one four-digit employee ID to `POST /api/kiosk/session` over HTTPS.
+2. The server finds that unique active employee and returns a signed, 10-minute worker-session token plus exactly one allowed next action.
+3. The client clears the entered ID and keeps only the token in volatile memory.
+4. Punch and correction APIs accept the short-lived bearer token.
 5. Nanshe discards the token after a successful action, successful correction request, one minute of inactivity, manual completion, refresh, or app closure.
 
 ### Punch capture
@@ -56,11 +56,9 @@ Workers submit correction requests; they never overwrite punches. A Steward user
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable internal employee identity; never reused. |
-| `employeeNumber` | Unique official display/report identifier from `1001` through `1999`. It is never accepted as a worker authentication credential. |
+| `employeeNumber` | Unique four-digit employee ID from `1001` through `1999`; accepted by the supervised kiosk as low-friction identification. |
 | `firstName`, `lastName` | Display/report identity. |
-| `clockCodeLookup` | Unique HMAC digest used to locate a code without storing it. Nullable only for migrated workers awaiting rotation. |
-| `clockCodeHash` | Bcrypt verifier. Nullable only for migrated workers awaiting rotation. |
-| `employeeCode`, `pinHash` database columns | Nullable legacy migration fields. They are not accepted by worker APIs or returned by Steward. Rotate migrated workers to private clock codes, then remove legacy values under an approved migration. |
+| `clockCodeLookup`, `clockCodeHash`, `employeeCode`, `pinHash` | Deprecated nullable compatibility columns from earlier prototypes. Current worker APIs and Steward do not use or return them. Remove them only through a reviewed forward migration. |
 | `active` | Whether the employee may authenticate. Historical records remain. |
 | `createdAt`, `updatedAt` | Employee lifecycle timestamps. |
 
@@ -70,7 +68,7 @@ Workers submit correction requests; they never overwrite punches. A Steward user
 | --- | --- |
 | `id` | Immutable punch identity. |
 | `employeeId` | Worker who owns the punch. |
-| `type` | `WORK_IN`, `MEAL_START`, `MEAL_END`, or `WORK_OUT`. |
+| `type` | `WORK_IN` or `WORK_OUT` for current kiosk punches. Historical `MEAL_START` and `MEAL_END` values remain readable. |
 | `occurredAt` | Original server timestamp or manager-approved missing-punch time. Never overwritten. |
 | `recordedAt` | Database capture time. |
 | `source` | `KIOSK` or `ADMIN_CORRECTION`. |
@@ -102,7 +100,7 @@ Steward identity, normalized unique email, bcrypt password verifier, and lifecyc
 
 ### `AuditEvent`
 
-Append-only actor/action/entity/time metadata for consequential changes. Metadata intentionally excludes clock codes, password values, and submitted failed credentials.
+Append-only actor/action/entity/time metadata for consequential changes. Metadata intentionally excludes password values, submitted IDs, and failed credentials.
 
 ## Authority and derived state
 

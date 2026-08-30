@@ -27,7 +27,8 @@ docs                 design, calculation, security, evidence, and operations con
 
 | Priority | Finding | Disposition in this pass |
 | --- | --- | --- |
-| High | Official identity was conflated conceptually with authentication. | Added unique `1001`–`1999` official employee numbers and kept private 6–10 digit clock codes separate. |
+| High | The worker flow was more complex than the supervised ten-worker setting required. | Consolidated entry to the official `1001`–`1999` employee ID and documented that it is convenient identification, not strong authentication. |
+| High | Multiple visible punch choices could let workers request contradictory state. | Reduced the current kiosk state machine to strict alternating `WORK_IN`/`WORK_OUT`; the server rechecks and rejects in/in or out/out even if a client is stale. |
 | High | An approved revision moved across a report query boundary could be omitted. | Query now considers original and revised effective time, filters by final effective time, then sorts the effective result. |
 | High | Container startup ran migrations and seed logic every time; seed rotated admin/worker credentials. | Runtime startup is read-only with respect to schema/seed. Compose and Render perform one-shot predeploy migration/initialization; seed no longer rotates existing credentials. |
 | High | Steward sign-in had no application throttle. | Added source-derived failed-attempt throttling, dummy-hash timing behavior, generic responses, and smoke coverage. |
@@ -45,7 +46,8 @@ docs                 design, calculation, security, evidence, and operations con
 | Process-local throttling | Restart resets counters; multiple replicas do not share them. | Keep one instance for the ten-worker deployment, add platform/WAF controls, and move to a shared limiter before scaling. |
 | Application-enforced immutability | A privileged database operator can still alter rows. | Restrict database roles, monitor privileged access, preserve backups, and consider database-level append-only controls or external audit anchoring. |
 | Current-setting historical recalculation | An old period recalculates under today’s settings. | Reconcile and retain generated packets now; add explicit approved-period setting snapshots before using the app as the sole final payroll archive. |
-| No Steward MFA or role separation | One compromised manager account can resolve corrections and rotate codes. | Restrict Steward network access and add MFA/SSO and role-based authorization. |
+| No Steward MFA or role separation | One compromised manager account can resolve corrections and change employee identities. | Restrict Steward network access and add MFA/SSO and role-based authorization. |
+| Predictable worker IDs | A person who knows another ID can open that worker’s limited kiosk session and attempt the valid action. | Accept only for the supervised kiosk described by the employer; use private PINs or badges if the context changes. |
 | No bundled monitoring/restore automation | A backup claim is unproven until a restore works. | Enable platform alerts and paid database recovery, schedule logical exports, and record isolated restore exercises. |
 | Public network exposure | A kiosk API and `/admin` route share the public service. | Use TLS, device restrictions, strong Steward password, optional access gateway for `/admin`, and security review. |
 
@@ -57,9 +59,9 @@ Do not use Render’s free database for production time records. Production acce
 
 ## Production acceptance gates
 
-1. Replace all synthetic names, clock codes, company labels, and Steward credentials through an approved private channel.
+1. Replace all synthetic names, company labels, and Steward credentials through an approved private channel; assign IDs `1001` onward.
 2. Confirm pay-period anchor, workweek boundary, time zone, and payroll treatment with the responsible payroll/legal reviewers.
-3. Protect `/admin`, assign access owners, and document worker code delivery/rotation.
+3. Protect `/admin`, assign access owners, and document employee ID assignment and misuse response.
 4. Deploy one instance with private PostgreSQL, TLS, generated secrets, and passing health checks.
 5. Execute and record an isolated backup restore.
 6. Run the automated test/build/smoke suite against the candidate deployment.

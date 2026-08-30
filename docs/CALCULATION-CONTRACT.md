@@ -15,19 +15,21 @@ This document defines what the Nanshe calculation engine promises. It is deliber
 Valid state transitions are:
 
 ```text
-OFF ── work in ──> WORKING ── meal start ──> MEAL
- ^                    │                         │
- └──── work out ──────┘<────── meal end ───────┘
+OFF ── clock in ──> WORKING
+ ^                     │
+ └──── clock out ──────┘
 ```
+
+The current kiosk emits only `WORK_IN` and `WORK_OUT`. For an unpaid meal, the worker clocks out and back in; no time is deducted automatically. Historical `MEAL_START` and `MEAL_END` events remain readable so older records are not discarded.
 
 The engine counts only closed work segments. It flags, without guessing:
 
 - an unexpected action for the current state;
 - work without a closing clock-out;
-- a meal without a meal-end;
-- a meal shorter than 30 minutes;
-- a meal begun after five elapsed shift hours; and
-- a shift longer than five hours without a recorded meal.
+- a historical meal without a meal-end;
+- a historical meal shorter than 30 minutes;
+- a historical meal begun after five elapsed shift hours; and
+- a shift longer than five hours without an unpaid out/in interval or historical meal record.
 
 Work segments crossing midnight are divided across local calendar days. Stored timestamps are UTC; grouping and display use the configured IANA time zone.
 

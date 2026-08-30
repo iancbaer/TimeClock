@@ -1,4 +1,3 @@
-import { randomInt } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 
 const baseUrl = process.env.NANSHE_BASE_URL ?? "http://127.0.0.1:3000";
@@ -38,50 +37,38 @@ const roster = [];
 for (let number = 1001; number <= 1010; number += 1) {
   const employeeNumber = String(number);
   const existing = byNumber.get(employeeNumber);
-  let created = false;
-  let assignedCode = "";
-
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    assignedCode = String(randomInt(100_000, 1_000_000));
-    const employee = {
-      employeeNumber,
-      firstName: "Demo",
-      lastName: `Worker ${employeeNumber}`,
-      clockCode: assignedCode,
-      active: true,
-    };
-    const result = existing
-      ? await jsonRequest(`/api/admin/employees/${existing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Cookie: cookie },
-        body: JSON.stringify(employee),
-      })
-      : await jsonRequest("/api/admin/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: cookie },
-        body: JSON.stringify(employee),
-      });
-
-    if (result.response.ok) {
-      created = !existing;
-      break;
-    }
-    if (result.response.status !== 409 || attempt === 19) {
-      throw new Error(`Could not provision employee ${employeeNumber}; server returned ${result.response.status}.`);
-    }
+  const employee = {
+    employeeNumber,
+    firstName: "Demo",
+    lastName: `Worker ${employeeNumber}`,
+    active: true,
+  };
+  const result = existing
+    ? await jsonRequest(`/api/admin/employees/${existing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify(employee),
+    })
+    : await jsonRequest("/api/admin/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify(employee),
+    });
+  if (!result.response.ok) {
+    throw new Error(`Could not provision employee ${employeeNumber}; server returned ${result.response.status}.`);
   }
 
-  roster.push({ employeeNumber, displayName: `Demo Worker ${employeeNumber}`, clockCode: assignedCode, created });
+  roster.push({ employeeNumber, displayName: `Demo Worker ${employeeNumber}`, created: !existing });
 }
 
 for (const entry of roster) {
   const verification = await jsonRequest("/api/kiosk/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clockCode: entry.clockCode }),
+    body: JSON.stringify({ employeeNumber: entry.employeeNumber }),
   });
   if (!verification.response.ok || verification.body.employee?.employeeNumber !== entry.employeeNumber) {
-    throw new Error(`Authentication verification failed for employee ${entry.employeeNumber}.`);
+    throw new Error(`ID verification failed for employee ${entry.employeeNumber}.`);
   }
 }
 
@@ -91,12 +78,12 @@ function csv(value) {
 
 const generatedAt = new Date().toISOString();
 const lines = [
-  ["Nanshe local synthetic access roster"],
+  ["Nanshe local synthetic employee roster"],
   ["Generated at", generatedAt],
-  ["Warning", "Private demo credentials. Store securely, replace with real employee names in Steward, and do not commit."],
+  ["Note", "Synthetic local data. Replace demo names with real employee names in Steward. Do not commit real employee information."],
   [],
-  ["Official employee number", "Display name", "Private clock code", "Action"],
-  ...roster.map((item) => [item.employeeNumber, item.displayName, item.clockCode, item.created ? "created" : "updated"]),
+  ["Employee ID", "Display name", "Action"],
+  ...roster.map((item) => [item.employeeNumber, item.displayName, item.created ? "created" : "updated"]),
 ];
 await writeFile(outputPath, `${lines.map((row) => row.map(csv).join(",")).join("\r\n")}\r\n`, { mode: 0o600 });
-console.log(`Provisioned and authenticated ${roster.length} synthetic employees. Private roster written to ${outputPath}.`);
+console.log(`Provisioned and verified ${roster.length} synthetic employees. Roster written to ${outputPath}.`);

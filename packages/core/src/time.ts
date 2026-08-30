@@ -72,27 +72,20 @@ function getOrCreateDay(days: Map<string, MutableDay>, date: string): MutableDay
 }
 
 export function nextPunchType(punches: Pick<EffectivePunch, "type" | "occurredAt">[]): PunchType {
-  let state: "OFF" | "WORKING" | "MEAL" = "OFF";
+  let state: "OFF" | "WORKING" = "OFF";
   for (const punch of [...punches].sort(
     (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
   )) {
     if (state === "OFF" && punch.type === "WORK_IN") state = "WORKING";
-    else if (state === "WORKING" && punch.type === "MEAL_START") state = "MEAL";
     else if (state === "WORKING" && punch.type === "WORK_OUT") state = "OFF";
-    else if (state === "MEAL" && punch.type === "MEAL_END") state = "WORKING";
   }
-  if (state === "OFF") return "WORK_IN";
-  if (state === "WORKING") return "MEAL_START";
-  return "MEAL_END";
+  return state === "OFF" ? "WORK_IN" : "WORK_OUT";
 }
 
 export function allowedPunchTypes(
   punches: Pick<EffectivePunch, "type" | "occurredAt">[],
 ): PunchType[] {
-  const next = nextPunchType(punches);
-  if (next === "WORK_IN") return ["WORK_IN"];
-  if (next === "MEAL_START") return ["MEAL_START", "WORK_OUT"];
-  return ["MEAL_END"];
+  return [nextPunchType(punches)];
 }
 
 export function calculateTimesheet(
@@ -178,6 +171,15 @@ export function calculateTimesheet(
       }
       state = "OFF";
       workStart = null;
+      shiftStart = null;
+      shiftHadMeal = false;
+      continue;
+    }
+    if (punch.type === "WORK_OUT" && state === "MEAL" && mealStart) {
+      mealSegments.push({ start: mealStart, end: punch.at });
+      issue(issues, "OPEN_MEAL", "Meal end was missing; the recorded clock-out closed the historical meal state.", date, punch.id);
+      state = "OFF";
+      mealStart = null;
       shiftStart = null;
       shiftHadMeal = false;
       continue;

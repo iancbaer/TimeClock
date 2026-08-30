@@ -10,7 +10,6 @@ interface Employee {
   firstName: string;
   lastName: string;
   active: boolean;
-  codeConfigured: boolean;
 }
 
 interface Correction {
@@ -52,7 +51,7 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const [newEmployee, setNewEmployee] = useState({ employeeNumber: "", firstName: "", lastName: "", clockCode: "" });
+  const [newEmployee, setNewEmployee] = useState({ employeeNumber: "", firstName: "", lastName: "" });
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -95,7 +94,7 @@ export function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEmployee),
       }));
-      setNewEmployee({ employeeNumber: "", firstName: "", lastName: "", clockCode: "" });
+      setNewEmployee({ employeeNumber: "", firstName: "", lastName: "" });
       setNotice({ kind: "success", text: "Employee created." });
       await load();
     } catch (error) {
@@ -183,19 +182,18 @@ export function AdminDashboard() {
             {employees.map((employee) => (
               <a className={`employee-row ${employee.active ? "" : "inactive"}`} href={`/admin/employee/${employee.id}`} key={employee.id}>
                 <span className="avatar">{employee.firstName[0]}{employee.lastName[0]}</span>
-                <span><strong>{employee.firstName} {employee.lastName}</strong><small>Employee {employee.employeeNumber} · {employee.codeConfigured ? "Private clock code configured" : "Clock code setup required"}{employee.active ? "" : " · Inactive"}</small></span>
+                <span><strong>{employee.firstName} {employee.lastName}</strong><small>Employee ID {employee.employeeNumber}{employee.active ? "" : " · Inactive"}</small></span>
                 <span aria-hidden="true">→</span>
               </a>
             ))}
           </div>
           <form className="inline-form" onSubmit={addEmployee}>
             <h3>Add employee</h3>
-            <p className="form-help">The official 1xxx employee number is shown on records. It is not the private clock code used to sign in.</p>
+            <p className="form-help">Workers enter this four-digit ID on the Nanshe keypad.</p>
             <div className="form-grid">
               <label>Official employee number<input inputMode="numeric" pattern="1[0-9]{3}" minLength={4} maxLength={4} value={newEmployee.employeeNumber} onChange={(event) => setNewEmployee({ ...newEmployee, employeeNumber: event.target.value.replace(/\D/g, "").slice(0, 4) })} required /></label>
               <label>First name<input value={newEmployee.firstName} onChange={(event) => setNewEmployee({ ...newEmployee, firstName: event.target.value })} required /></label>
               <label>Last name<input value={newEmployee.lastName} onChange={(event) => setNewEmployee({ ...newEmployee, lastName: event.target.value })} required /></label>
-              <label>Private 6–10 digit clock code<input type="password" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="new-password" value={newEmployee.clockCode} onChange={(event) => setNewEmployee({ ...newEmployee, clockCode: event.target.value.replace(/\D/g, "").slice(0, 10) })} required /></label>
             </div>
             <button className="button secondary" disabled={busy}>Create employee</button>
           </form>

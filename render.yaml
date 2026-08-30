@@ -16,8 +16,6 @@ services:
           property: connectionString
       - key: AUTH_SECRET
         generateValue: true
-      - key: CLOCK_CODE_PEPPER
-        generateValue: true
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD

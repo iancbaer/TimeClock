@@ -2,20 +2,19 @@
 
 Nanshe is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked.
 
-Steward is the separate owner portal in this repository. It manages workers and private clock codes, reviews corrections, prepares two-week evidence packets, exports CSV, and maintains settings. Steward desktop packages are available for Windows and Ubuntu; they never change the worker-facing Nanshe identity.
+Steward is the separate owner portal in this repository. It manages workers, reviews corrections, prepares two-week evidence packets, exports CSV, and maintains settings. Steward desktop packages are available for Windows and Ubuntu; they never change the worker-facing Nanshe identity.
 
 ## Worker experience
 
-- One private 6–10 digit clock code entered through a large masked 3×4 keypad
-- A separate official employee number beginning with `1001`, visible only after authentication and on manager records
+- One four-digit employee ID, beginning with `1001`, entered through a large 3×4 keypad
 - No text field or Android software keyboard during ordinary clocking
-- Only valid current actions: **Clock in**; **Start meal** and **Clock out**; or **End meal**
-- Clear punch confirmation followed by automatic return to the private code screen
+- Name confirmation followed by exactly one valid action: **Clock in** or **Clock out**
+- Clear punch confirmation followed by automatic return to the employee ID screen
 - One-minute authenticated idle timeout and manual **Done** action
-- Recent time and worker-submitted correction requests inside the private session
+- Recent time and worker-submitted correction requests inside the brief worker session
 - No visible Steward link or everyday server controls on the worker screen
 
-Codes are not employee numbers and are never stored or displayed in plaintext. See [Security and privacy](docs/SECURITY-AND-PRIVACY.md).
+The employee ID is a convenient identifier, not a strong authentication secret. This is an intentional tradeoff for a supervised ten-worker kiosk. See [Security and privacy](docs/SECURITY-AND-PRIVACY.md).
 
 ## Records and reports
 
@@ -44,7 +43,7 @@ The printable packet is a draft review record. Printing does not approve, sign, 
 Nanshe never changes an original punch. With the default `EMPLOYEE_FAVOR_DAILY_CEILING` mode:
 
 1. Exact work comes only from completed work segments.
-2. Recorded meal duration is excluded exactly; meal and rest periods are never rounded.
+2. Unpaid time is recorded by clocking out and back in; no meal time is deducted automatically.
 3. Each local day’s exact worked total is rounded up to the next 15-minute increment.
 4. The difference is labeled `Paid time credit`, never represented as actual work.
 5. Overtime is calculated independently in each seven-day workweek using worker-favorable payable time.
@@ -74,10 +73,9 @@ Requirements: Docker Engine with Docker Compose.
 ```bash
 cp .env.example .env
 openssl rand -hex 32
-openssl rand -hex 32
 ```
 
-Use separate generated values for `AUTH_SECRET` and `CLOCK_CODE_PEPPER`; set unique database and Steward credentials; remove or replace all synthetic seed values before production.
+Use the generated value for `AUTH_SECRET`; set unique database and Steward credentials; and remove or replace all synthetic seed values before production.
 
 ```bash
 docker compose up -d --build
@@ -102,7 +100,7 @@ npm test
 npm run build
 ```
 
-With a seeded server running, `npm run smoke` verifies private clock-code authentication, failed-attempt throttling, valid punches, correction approval, report reconciliation, and evidence export.
+With a synthetic employee on a running server, `npm run smoke` verifies employee-ID entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
 
 ## Client builds
 
