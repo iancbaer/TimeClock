@@ -6,10 +6,10 @@ import Link from "next/link";
 
 interface Employee {
   id: string;
-  employeeCode: string;
   firstName: string;
   lastName: string;
   active: boolean;
+  codeConfigured: boolean;
 }
 
 interface Correction {
@@ -51,7 +51,7 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const [newEmployee, setNewEmployee] = useState({ employeeCode: "", firstName: "", lastName: "", pin: "" });
+  const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", clockCode: "" });
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -90,7 +90,7 @@ export function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEmployee),
       }));
-      setNewEmployee({ employeeCode: "", firstName: "", lastName: "", pin: "" });
+      setNewEmployee({ firstName: "", lastName: "", clockCode: "" });
       setNotice({ kind: "success", text: "Employee created." });
       await load();
     } catch (error) {
@@ -178,7 +178,7 @@ export function AdminDashboard() {
             {employees.map((employee) => (
               <a className={`employee-row ${employee.active ? "" : "inactive"}`} href={`/admin/employee/${employee.id}`} key={employee.id}>
                 <span className="avatar">{employee.firstName[0]}{employee.lastName[0]}</span>
-                <span><strong>{employee.firstName} {employee.lastName}</strong><small>Code {employee.employeeCode}{employee.active ? "" : " · Inactive"}</small></span>
+                <span><strong>{employee.firstName} {employee.lastName}</strong><small>{employee.codeConfigured ? "Private clock code configured" : "Clock code setup required"}{employee.active ? "" : " · Inactive"}</small></span>
                 <span aria-hidden="true">→</span>
               </a>
             ))}
@@ -188,8 +188,7 @@ export function AdminDashboard() {
             <div className="form-grid">
               <label>First name<input value={newEmployee.firstName} onChange={(event) => setNewEmployee({ ...newEmployee, firstName: event.target.value })} required /></label>
               <label>Last name<input value={newEmployee.lastName} onChange={(event) => setNewEmployee({ ...newEmployee, lastName: event.target.value })} required /></label>
-              <label>Employee code<input value={newEmployee.employeeCode} onChange={(event) => setNewEmployee({ ...newEmployee, employeeCode: event.target.value })} required /></label>
-              <label>4–8 digit PIN<input type="password" inputMode="numeric" pattern="[0-9]{4,8}" value={newEmployee.pin} onChange={(event) => setNewEmployee({ ...newEmployee, pin: event.target.value })} required /></label>
+              <label>Private 6–10 digit clock code<input type="password" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="new-password" value={newEmployee.clockCode} onChange={(event) => setNewEmployee({ ...newEmployee, clockCode: event.target.value.replace(/\D/g, "").slice(0, 10) })} required /></label>
             </div>
             <button className="button secondary" disabled={busy}>Create employee</button>
           </form>

@@ -98,7 +98,39 @@ h1, h2 { letter-spacing: -0.035em; }
 .panel-heading h1, .panel-heading h2 { margin-bottom: 0.4rem; }
 .panel-heading p:last-child { margin: 0; color: var(--muted); line-height: 1.55; }
 
-.sign-in-panel { width: min(540px, 100%); margin: 0 auto; }
+.clock-code-panel { width: min(520px, 100%); margin: 0 auto; }
+.keypad-heading { text-align: center; }
+.clock-code-entry { display: grid; gap: 1rem; }
+.clock-code-display {
+  display: grid;
+  min-height: 5.2rem;
+  place-items: center;
+  border: 2px solid #b8c5bd;
+  border-radius: 1rem;
+  color: var(--deep);
+  background: white;
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: 0.28em;
+}
+.clock-code-display span { color: var(--muted); font-size: 1rem; font-weight: 650; letter-spacing: 0; }
+.numeric-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
+.keypad-key {
+  min-height: 5rem;
+  border: 1px solid #b8c5bd;
+  border-radius: 1rem;
+  color: var(--deep);
+  background: #fff;
+  box-shadow: 0 5px 12px rgba(16,42,46,0.08);
+  cursor: pointer;
+  font-size: 1.8rem;
+  font-weight: 850;
+}
+.keypad-key:active:not(:disabled) { transform: translateY(2px); background: #edf5ef; }
+.keypad-key.utility { color: var(--muted); background: #f0f2eb; font-size: 0.95rem; }
+.keypad-key.continue { color: white; background: var(--teal); font-size: 0.9rem; }
+.keypad-key:disabled { cursor: default; opacity: 0.45; }
+.code-privacy-note { margin: 0; color: var(--muted); text-align: center; font-size: 0.78rem; line-height: 1.45; }
 label { display: grid; gap: 0.45rem; margin-bottom: 1rem; color: #324345; font-size: 0.86rem; font-weight: 750; }
 input, select, textarea {
   width: 100%;
@@ -143,6 +175,8 @@ textarea { resize: vertical; }
 .welcome-row { display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1.4rem; }
 .welcome-row h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.25rem); }
 .punch-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.punch-actions.action-count-1 { grid-template-columns: 1fr; }
+.punch-actions.action-count-1 .punch-button { min-height: 10rem; }
 .punch-button {
   display: grid;
   min-height: 7rem;
@@ -171,6 +205,27 @@ textarea { resize: vertical; }
 .punch-list .empty, .empty { color: var(--muted); }
 .correction-panel { grid-column: 1 / -1; }
 .kiosk-footer { padding: 1.5rem 0 0; color: var(--muted); text-align: center; font-size: 0.8rem; }
+
+/* Keep the ordinary code-entry task on one landscape tablet screen without
+   shrinking its touch targets below a comfortable size. */
+@media (min-width: 841px) and (max-height: 900px) {
+  .kiosk-shell { padding: 0.75rem 0 1rem; }
+  .brand-block { gap: 0.7rem; margin-bottom: 0.65rem; }
+  .brand-mark { width: 2.65rem; height: 2.65rem; border-radius: 0.8rem; }
+  .brand-block h1 { font-size: 1.65rem; }
+  .clock-card { margin-bottom: 0.75rem; border-radius: 1rem; padding: 0.8rem 1.25rem; }
+  .live-date { font-size: 0.78rem; }
+  .live-time { font-size: 2.8rem; }
+  .clock-code-panel { padding: 1rem 1.25rem; }
+  .clock-code-panel .panel-heading { margin-bottom: 0.7rem; }
+  .clock-code-panel .panel-heading p:last-child { font-size: 0.86rem; line-height: 1.35; }
+  .clock-code-entry { gap: 0.55rem; }
+  .clock-code-display { min-height: 3.2rem; font-size: 2rem; }
+  .numeric-keypad { gap: 0.45rem; }
+  .keypad-key { min-height: 3.6rem; }
+  .code-privacy-note { font-size: 0.7rem; }
+  .kiosk-footer { padding-top: 0.65rem; }
+}
 
 .centered-page { display: grid; min-height: 100vh; place-items: center; padding: 1rem; }
 .admin-login { width: min(470px, 100%); }
@@ -210,6 +265,11 @@ textarea { resize: vertical; }
 .loading-state { margin: 15vh auto 0; color: var(--muted); text-align: center; }
 
 .sheet-shell { width: min(1380px, calc(100% - 2rem)); }
+.manager-access-card { display: grid; grid-template-columns: 1fr minmax(230px, 0.45fr) auto; align-items: end; gap: 1rem; margin-bottom: 1rem; }
+.manager-access-card h2 { margin-bottom: 0.35rem; }
+.manager-access-card p { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.manager-access-card label { margin: 0; }
+.manager-tool-notice { grid-column: 1 / -1; color: var(--teal) !important; font-weight: 750; }
 .sheet-shell .admin-header > div { display: flex; align-items: center; gap: 1rem; }
 .sheet-shell .admin-header .back-link { margin: 0; }
 .timesheet-paper { border: 1px solid #d5d7cf; border-radius: 0.6rem; padding: clamp(1rem, 3vw, 2.5rem); background: var(--paper); box-shadow: var(--shadow); }
@@ -219,6 +279,10 @@ textarea { resize: vertical; }
 .sheet-identity strong { font-size: 1.2rem; }
 .sheet-identity span { color: var(--muted); font-size: 0.86rem; }
 .sheet-totals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin: 1.2rem 0; }
+.report-purpose { display: grid; grid-template-columns: 1.1fr 1.1fr 0.8fr; gap: 0.6rem; margin: 1rem 0; }
+.report-purpose div { display: grid; align-content: start; gap: 0.2rem; border: 1px solid var(--line); border-radius: 0.65rem; padding: 0.7rem; }
+.report-purpose strong { color: var(--teal); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.report-purpose span { color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
 .sheet-totals div { display: grid; gap: 0.2rem; border-radius: 0.7rem; padding: 0.75rem; background: #f0f2eb; }
 .sheet-totals span { color: var(--muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .sheet-totals strong { font-size: 1.25rem; }
@@ -245,7 +309,11 @@ tfoot th, tfoot td { background: #edf2ed; font-weight: 850; }
 .sheet-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
 .sheet-notes h2 { margin-bottom: 0.5rem; font-size: 1rem; }
 .sheet-notes p { color: var(--muted); font-size: 0.74rem; line-height: 1.55; }
+.correction-evidence { border-bottom: 1px solid var(--line); padding: 0.4rem 0; }
+.correction-evidence:last-child { border-bottom: 0; }
+.correction-evidence p { margin-bottom: 0.25rem; }
 .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 1rem; color: #485456; font-size: 0.82rem; }
+.attestation-note { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
 
 @media (max-width: 840px) {
   .kiosk-grid, .admin-grid { grid-template-columns: 1fr; }
@@ -253,6 +321,7 @@ tfoot th, tfoot td { background: #edf2ed; font-weight: 850; }
   .admin-header { align-items: flex-start; }
   .admin-header nav { flex-wrap: wrap; justify-content: end; }
   .sheet-totals { grid-template-columns: repeat(2, 1fr); }
+  .manager-access-card, .report-purpose { grid-template-columns: 1fr; }
   .sheet-totals .accent { grid-column: 1 / -1; }
   .sheet-title, .accuracy-banner { display: grid; }
   .sheet-identity { text-align: left; }

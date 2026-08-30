@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { authenticateEmployee } from "@/lib/employees";
 import { HttpError, errorResponse } from "@/lib/http";
+import { requireKioskSession } from "@/lib/kiosk-auth";
 import { prisma } from "@/lib/db";
 import { correctionSchema } from "@/lib/schemas";
 
 export async function POST(request: Request) {
   try {
     const input = correctionSchema.parse(await request.json());
-    const employee = await authenticateEmployee(input.employeeCode, input.pin);
+    const employee = await requireKioskSession(request);
     if (input.kind === "WRONG_TIME" && (!input.targetPunchId || !input.requestedOccurredAt)) {
       throw new HttpError(400, "Choose the incorrect punch and enter the requested time.");
     }

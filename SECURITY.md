@@ -16,6 +16,7 @@ Include the affected commit/version, reproducible steps using synthetic data, im
 
 - Use HTTPS for every non-local connection.
 - Use unique, high-entropy `AUTH_SECRET`, database, and administrator credentials.
+- Use a separate, high-entropy `CLOCK_CODE_PEPPER`; do not reuse `AUTH_SECRET`.
 - Keep PostgreSQL off the public internet.
 - Restrict database and backup access to authorized administrators.
 - Encrypt backups and test restoration.
@@ -26,7 +27,9 @@ Include the affected commit/version, reproducible steps using synthetic data, im
 
 ## Known boundaries
 
-- Employee PIN authentication is intended for a supervised shared kiosk, not remote employee self-service over an untrusted network.
+- Numeric clock-code authentication is intended for a supervised shared kiosk. It uses protected database digests, a short-lived memory-only session, and single-instance throttling; it is not remote employee self-service or a substitute for long-password/MFA authentication.
 - The in-process API does not replace a reverse proxy/WAF, centralized rate limiting, monitoring, or intrusion detection.
 - Android debug APKs from CI are for testing. Managed production deployment should use an organization-controlled signing key and device-management policy.
 - This project does not store payroll bank information, Social Security numbers, or payroll credentials and should not be extended to do so without a separate security design review.
+
+The implemented privacy model and production-control gaps are documented in [docs/SECURITY-AND-PRIVACY.md](docs/SECURITY-AND-PRIVACY.md).

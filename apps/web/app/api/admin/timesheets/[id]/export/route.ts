@@ -15,8 +15,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const periodStart = new URL(request.url).searchParams.get("periodStart") ?? undefined;
     const sheet = await buildEmployeeTimesheet(id, periodStart);
     const rows = [
+      ["Document", "Nanshe pay-period evidence export"],
+      ["Purpose", "Review exact recorded time, corrections, calculation results, and payroll exceptions"],
+      ["Status", "Draft review record; export does not approve or freeze the pay period"],
+      ["Generated at", sheet.report.generatedAt],
+      ["Calculation version", sheet.report.calculationVersion],
       ["Employee", `${sheet.employee.firstName} ${sheet.employee.lastName}`],
-      ["Employee code", sheet.employee.employeeCode],
+      ["Record ID", sheet.employee.id],
       ["Pay period", `${sheet.summary.periodStart} through ${sheet.summary.periodEnd}`],
       [],
       ["Week", "Date", "Punches", "Actual", "Paid time credit", "Payable", "Issues"],
@@ -39,7 +44,21 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       ["Period totals", "", "", formatDuration(sheet.summary.actualMilliseconds), formatDuration(sheet.summary.creditMilliseconds), formatDuration(sheet.summary.payableMilliseconds), ""],
       ["Regular payable", formatDuration(sheet.summary.regularMilliseconds)],
       ["Overtime payable", formatDuration(sheet.summary.overtimeMilliseconds)],
+      [],
+      ["Correction history"],
+      ["Status", "Kind", "Submitted", "Requested action", "Requested time", "Worker explanation", "Manager resolution"],
     );
+    for (const correction of sheet.corrections) {
+      rows.push([
+        correction.status,
+        correction.kind,
+        correction.submittedAt.toISOString(),
+        correction.requestedType ?? "",
+        correction.requestedOccurredAt?.toISOString() ?? "",
+        correction.note,
+        correction.resolutionNote ?? "",
+      ]);
+    }
     const body = rows.map((row) => row.map(csv).join(",")).join("\r\n");
     const filename = `${sheet.employee.lastName}-${sheet.employee.firstName}-${sheet.summary.periodStart}.csv`
       .replaceAll(/[^a-zA-Z0-9.-]/g, "-");

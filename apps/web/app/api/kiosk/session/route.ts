@@ -1,21 +1,22 @@
 import { allowedPunchTypes } from "@nanshe/core";
 import { NextResponse } from "next/server";
-import { authenticateEmployee } from "@/lib/employees";
 import { errorResponse } from "@/lib/http";
+import { authenticateClockCode, createKioskSession } from "@/lib/kiosk-auth";
 import { effectiveRecentPunches } from "@/lib/punches";
-import { credentialsSchema } from "@/lib/schemas";
+import { clockCodeSchema } from "@/lib/schemas";
 import { getSettings } from "@/lib/settings";
 
 export async function POST(request: Request) {
   try {
-    const input = credentialsSchema.parse(await request.json());
+    const input = clockCodeSchema.parse(await request.json());
     const [employee, settings] = await Promise.all([
-      authenticateEmployee(input.employeeCode, input.pin),
+      authenticateClockCode(request, input.clockCode),
       getSettings(),
     ]);
     const punches = await effectiveRecentPunches(employee.id, settings.timeZone);
     return NextResponse.json({
       employee: { id: employee.id, firstName: employee.firstName, lastName: employee.lastName },
+      sessionToken: await createKioskSession(employee.id),
       companyName: settings.companyName,
       timeZone: settings.timeZone,
       serverNow: new Date().toISOString(),

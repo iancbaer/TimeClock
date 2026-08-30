@@ -6,6 +6,7 @@ export class HttpError extends Error {
     public status: number,
     message: string,
     public code = "REQUEST_FAILED",
+    public headers?: HeadersInit,
   ) {
     super(message);
   }
@@ -13,7 +14,7 @@ export class HttpError extends Error {
 
 export function errorResponse(error: unknown): NextResponse {
   if (error instanceof HttpError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status, headers: error.headers });
   }
   if (error instanceof ZodError) {
     return NextResponse.json(

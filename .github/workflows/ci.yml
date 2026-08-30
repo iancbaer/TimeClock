@@ -44,11 +44,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://timeclock:smoke-database-password@127.0.0.1:5432/timeclock?schema=public
       AUTH_SECRET: smoke-auth-secret-must-be-at-least-32-characters
+      CLOCK_CODE_PEPPER: smoke-clock-code-pepper-must-be-at-least-32-characters
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: development-only-password
       ADMIN_NAME: CI Administrator
-      SEED_EMPLOYEE_CODE: "1001"
-      SEED_EMPLOYEE_PIN: "2468"
+      SEED_CLOCK_CODE: "731905"
       KIOSK_ALLOWED_ORIGINS: https://localhost,capacitor://localhost
     steps:
       - uses: actions/checkout@v4

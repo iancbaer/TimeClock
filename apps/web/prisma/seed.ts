@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { createClockCodeCredentials } from "../lib/clock-code";
 
 const prisma = new PrismaClient();
 
@@ -41,17 +42,22 @@ async function main() {
     },
   });
 
-  if (process.env.SEED_EMPLOYEE_CODE && process.env.SEED_EMPLOYEE_PIN) {
-    await prisma.employee.upsert({
-      where: { employeeCode: process.env.SEED_EMPLOYEE_CODE },
-      update: {},
-      create: {
-        employeeCode: process.env.SEED_EMPLOYEE_CODE,
-        firstName: "Sample",
-        lastName: "Employee",
-        pinHash: await hash(process.env.SEED_EMPLOYEE_PIN, 12),
-      },
+  if (process.env.SEED_CLOCK_CODE) {
+    const credentials = await createClockCodeCredentials(process.env.SEED_CLOCK_CODE);
+    const existing = await prisma.employee.findFirst({
+      where: { firstName: "Sample", lastName: "Employee" },
+      orderBy: { createdAt: "asc" },
     });
+    if (existing) {
+      await prisma.employee.update({
+        where: { id: existing.id },
+        data: { ...credentials, legacyEmployeeCode: null, legacyPinHash: null },
+      });
+    } else {
+      await prisma.employee.create({
+        data: { firstName: "Sample", lastName: "Employee", ...credentials },
+      });
+    }
   }
 }
 

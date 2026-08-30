@@ -1,7 +1,7 @@
 import { allowedPunchTypes } from "@nanshe/core";
 import { NextResponse } from "next/server";
-import { authenticateEmployee } from "@/lib/employees";
 import { HttpError, errorResponse } from "@/lib/http";
+import { requireKioskSession } from "@/lib/kiosk-auth";
 import { prisma } from "@/lib/db";
 import { toEffectivePunch } from "@/lib/punches";
 import { punchSchema } from "@/lib/schemas";
@@ -10,10 +10,7 @@ import { getSettings } from "@/lib/settings";
 export async function POST(request: Request) {
   try {
     const input = punchSchema.parse(await request.json());
-    const [employee, settings] = await Promise.all([
-      authenticateEmployee(input.employeeCode, input.pin),
-      getSettings(),
-    ]);
+    const [employee, settings] = await Promise.all([requireKioskSession(request), getSettings()]);
 
     const punch = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`WITH acquired AS (SELECT pg_advisory_xact_lock(hashtext(${employee.id}))) SELECT 1::int AS "locked" FROM acquired`;

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface SheetData {
-  employee: { id: string; employeeCode: string; firstName: string; lastName: string; active: boolean };
+  employee: { id: string; firstName: string; lastName: string; active: boolean; codeConfigured: boolean };
   settings: { companyName: string; timeZone: string; roundingMode: string; roundingIntervalMinutes: number };
   summary: {
     periodStart: string;
@@ -36,7 +36,21 @@ interface SheetData {
       }>;
     }>;
   };
-  corrections: Array<{ id: string; kind: string; note: string; status: string; submittedAt: string; resolutionNote?: string | null }>;
+  corrections: Array<{
+    id: string;
+    kind: string;
+    note: string;
+    status: string;
+    submittedAt: string;
+    resolvedAt?: string | null;
+    requestedType?: string | null;
+    requestedOccurredAt?: string | null;
+    resolutionNote?: string | null;
+    targetPunch?: { id: string; type: string; occurredAt: string } | null;
+    createdPunch?: { id: string; type: string; occurredAt: string } | null;
+    resolvedBy?: { name: string } | null;
+  }>;
+  report: { generatedAt: string; calculationVersion: string; approvalState: string };
 }
 
 function shiftDate(value: string, days: number): string {
@@ -55,6 +69,9 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [clockCode, setClockCode] = useState("");
+  const [codeNotice, setCodeNotice] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +105,28 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
     window.history.replaceState(null, "", `?periodStart=${next}`);
   }
 
+  async function rotateClockCode(event: React.FormEvent) {
+    event.preventDefault();
+    setCodeBusy(true);
+    setCodeNotice("");
+    try {
+      const response = await fetch(`/api/admin/employees/${employeeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clockCode }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not update the clock code.");
+      setClockCode("");
+      setCodeNotice("Private clock code updated. Give it directly to the employee; Steward will not display it again.");
+      await load();
+    } catch (caught) {
+      setCodeNotice(caught instanceof Error ? caught.message : "Could not update the clock code.");
+    } finally {
+      setCodeBusy(false);
+    }
+  }
+
   if (loading && !sheet) return <main className="admin-shell"><div className="loading-state">Building the two-week sheet…</div></main>;
 
   return (
@@ -98,20 +137,33 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
           <button className="button quiet" onClick={() => changePeriod(-14)}>← Previous</button>
           <button className="button quiet" onClick={() => changePeriod(14)}>Next →</button>
           {sheet && <a className="button secondary" href={`/api/admin/timesheets/${employeeId}/export?periodStart=${sheet.summary.periodStart}`}>Export CSV</a>}
-          <button className="button primary" onClick={() => window.print()}>Print / PDF</button>
+          <button className="button primary" onClick={() => window.print()}>Print pay-period packet</button>
         </nav>
       </header>
       {error && <div className="notice error">{error}</div>}
       {sheet && (
+        <>
+        <form className="panel manager-access-card no-print" onSubmit={rotateClockCode}>
+          <div><p className="eyebrow">Worker access</p><h2>{sheet.employee.codeConfigured ? "Rotate private clock code" : "Set private clock code"}</h2><p>Use 6–10 digits. The code is saved as protected digests and cannot be recovered or displayed later.</p></div>
+          <label>New clock code<input type="password" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="new-password" value={clockCode} onChange={(event) => setClockCode(event.target.value.replace(/\D/g, "").slice(0, 10))} required /></label>
+          <button className="button secondary" disabled={codeBusy}>{codeBusy ? "Saving…" : "Save new code"}</button>
+          {codeNotice && <p className="manager-tool-notice" role="status">{codeNotice}</p>}
+        </form>
         <article className="timesheet-paper">
           <header className="sheet-title">
-            <div><p className="eyebrow">{sheet.settings.companyName}</p><h1>Employee time sheet</h1></div>
+            <div><p className="eyebrow">{sheet.settings.companyName}</p><h1>Pay-period evidence packet</h1></div>
             <div className="sheet-identity">
               <strong>{sheet.employee.firstName} {sheet.employee.lastName}</strong>
-              <span>Employee {sheet.employee.employeeCode}</span>
+              <span>Record {sheet.employee.id.slice(-8).toUpperCase()}</span>
               <span>{sheet.summary.periodStart} — {sheet.summary.periodEnd}</span>
             </div>
           </header>
+
+          <section className="report-purpose">
+            <div><strong>Purpose</strong><span>Evidence for reviewing recorded work, corrections, calculation results, exceptions, and payroll preparation.</span></div>
+            <div><strong>Status</strong><span>Draft review record. Printing or exporting does not approve, sign, or freeze this pay period.</span></div>
+            <div><strong>Generated</strong><span>{new Date(sheet.report.generatedAt).toLocaleString()} · {sheet.settings.timeZone} · {sheet.report.calculationVersion}</span></div>
+          </section>
 
           <div className="sheet-totals">
             <div><span>Exact worked</span><strong>{formatDuration(sheet.summary.actualMilliseconds)}</strong></div>
@@ -170,16 +222,24 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
             <div>
               <h2>Correction history</h2>
               {sheet.corrections.length === 0 ? <p>No correction requests associated with this period.</p> : sheet.corrections.map((item) => (
-                <p key={item.id}><strong>{item.status}</strong> · {item.kind.replaceAll("_", " ").toLowerCase()} · {item.note}{item.resolutionNote ? ` — ${item.resolutionNote}` : ""}</p>
+                <div className="correction-evidence" key={item.id}>
+                  <p><strong>{item.status}</strong> · {item.kind.replaceAll("_", " ").toLowerCase()} · submitted {new Date(item.submittedAt).toLocaleString()}</p>
+                  <p>Worker explanation: {item.note}</p>
+                  {item.targetPunch && <p>Original target: {item.targetPunch.type.replaceAll("_", " ").toLowerCase()} at {new Date(item.targetPunch.occurredAt).toLocaleString()}</p>}
+                  {item.requestedOccurredAt && <p>Requested: {item.requestedType?.replaceAll("_", " ").toLowerCase() ?? "time change"} at {new Date(item.requestedOccurredAt).toLocaleString()}</p>}
+                  {item.resolutionNote && <p>Manager resolution: {item.resolutionNote}{item.resolvedBy ? ` — ${item.resolvedBy.name}` : ""}</p>}
+                </div>
               ))}
             </div>
           </section>
 
           <footer className="signature-row">
-            <span>Employee review ____________________ Date __________</span>
-            <span>Manager approval __________________ Date __________</span>
+            <span>Employee attestation ____________________ Date __________</span>
+            <span>Manager attestation _____________________ Date __________</span>
           </footer>
+          <p className="attestation-note">Sign only after reviewing this packet and resolving material flags or corrections. Blank lines are intentional; Nanshe does not fabricate signatures or approval.</p>
         </article>
+        </>
       )}
     </main>
   );

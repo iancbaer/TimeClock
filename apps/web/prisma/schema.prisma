@@ -49,16 +49,18 @@ model CompanySettings {
 }
 
 model Employee {
-  id          String              @id @default(cuid())
-  employeeCode String            @unique
-  firstName   String
-  lastName    String
-  pinHash     String
-  active      Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  punches     Punch[]
-  corrections CorrectionRequest[]
+  id                 String              @id @default(cuid())
+  firstName          String
+  lastName           String
+  clockCodeLookup    String?             @unique
+  clockCodeHash      String?
+  legacyEmployeeCode String?             @unique @map("employeeCode")
+  legacyPinHash      String?             @map("pinHash")
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  punches            Punch[]
+  corrections        CorrectionRequest[]
 
   @@index([active, lastName, firstName])
 }

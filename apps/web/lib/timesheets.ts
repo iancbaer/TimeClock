@@ -41,17 +41,21 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
       requestedType: true,
       requestedOccurredAt: true,
       submittedAt: true,
+      resolvedAt: true,
       resolutionNote: true,
+      targetPunch: { select: { id: true, type: true, occurredAt: true } },
+      createdPunch: { select: { id: true, type: true, occurredAt: true } },
+      resolvedBy: { select: { name: true } },
     },
   });
 
   return {
     employee: {
       id: employee.id,
-      employeeCode: employee.employeeCode,
       firstName: employee.firstName,
       lastName: employee.lastName,
       active: employee.active,
+      codeConfigured: Boolean(employee.clockCodeHash),
     },
     settings: {
       companyName: settings.companyName,
@@ -66,5 +70,10 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
       payPeriodStart: periodStart,
     }),
     corrections,
+    report: {
+      generatedAt: new Date().toISOString(),
+      calculationVersion: "NANSHE-CALCULATION-1",
+      approvalState: "DRAFT_REVIEW_RECORD",
+    },
   };
 }

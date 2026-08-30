@@ -1,6 +1,7 @@
-import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
+import { createClockCodeCredentials } from "@/lib/clock-code";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";
 import { employeeUpdateSchema } from "@/lib/schemas";
@@ -11,12 +12,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const input = employeeUpdateSchema.parse(await request.json());
     const existing = await prisma.employee.findUnique({ where: { id }, select: { id: true } });
     if (!existing) throw new HttpError(404, "Employee not found.");
-    const { pin, ...data } = input;
+    const { clockCode, ...data } = input;
+    const credentials = clockCode ? await createClockCodeCredentials(clockCode) : {};
     const employee = await prisma.$transaction(async (tx) => {
       const updated = await tx.employee.update({
         where: { id },
-        data: { ...data, ...(pin ? { pinHash: await hash(pin, 12) } : {}) },
-        select: { id: true, employeeCode: true, firstName: true, lastName: true, active: true },
+        data: { ...data, ...credentials },
+        select: { id: true, firstName: true, lastName: true, active: true },
       });
       await tx.auditEvent.create({
         data: {
@@ -32,6 +34,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     });
     return NextResponse.json({ employee });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return errorResponse(new HttpError(409, "That private clock code is already assigned to another employee."));
+    }
     return errorResponse(error);
   }
 }
