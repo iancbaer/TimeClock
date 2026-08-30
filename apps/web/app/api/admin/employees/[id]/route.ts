@@ -18,7 +18,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const updated = await tx.employee.update({
         where: { id },
         data: { ...data, ...credentials },
-        select: { id: true, firstName: true, lastName: true, active: true },
+        select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true },
       });
       await tx.auditEvent.create({
         data: {
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ employee });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return errorResponse(new HttpError(409, "That private clock code is already assigned to another employee."));
+      return errorResponse(new HttpError(409, "That employee number or private clock code is already assigned."));
     }
     return errorResponse(error);
   }

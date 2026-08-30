@@ -25,11 +25,26 @@ export async function effectivePunchesForEmployee(
   to: Date,
 ): Promise<EffectivePunch[]> {
   const punches = await prisma.punch.findMany({
-    where: { employeeId, occurredAt: { gte: from, lt: to } },
+    where: {
+      employeeId,
+      OR: [
+        { occurredAt: { gte: from, lt: to } },
+        { revisions: { some: { effectiveOccurredAt: { gte: from, lt: to } } } },
+      ],
+    },
     include: { revisions: { orderBy: { createdAt: "desc" }, take: 1 } },
     orderBy: { occurredAt: "asc" },
   });
-  return punches.map(toEffectivePunch).filter((punch): punch is EffectivePunch => punch !== null);
+  const fromTime = from.getTime();
+  const toTime = to.getTime();
+  return punches
+    .map(toEffectivePunch)
+    .filter((punch): punch is EffectivePunch => {
+      if (!punch) return false;
+      const occurredAt = new Date(punch.occurredAt).getTime();
+      return occurredAt >= fromTime && occurredAt < toTime;
+    })
+    .sort((left, right) => new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime());
 }
 
 export async function effectiveRecentPunches(employeeId: string, timeZone: string): Promise<EffectivePunch[]> {

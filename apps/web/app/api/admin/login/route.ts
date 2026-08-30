@@ -8,7 +8,7 @@ const schema = z.object({ email: z.email(), password: z.string().min(1).max(200)
 export async function POST(request: Request) {
   try {
     const input = schema.parse(await request.json());
-    const admin = await authenticateAdmin(input.email, input.password);
+    const admin = await authenticateAdmin(request, input.email, input.password);
     await createAdminSession(admin);
     return NextResponse.json({ admin: { id: admin.id, email: admin.email, name: admin.name } });
   } catch (error) {

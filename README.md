@@ -7,6 +7,7 @@ Steward is the separate owner portal in this repository. It manages workers and 
 ## Worker experience
 
 - One private 6–10 digit clock code entered through a large masked 3×4 keypad
+- A separate official employee number beginning with `1001`, visible only after authentication and on manager records
 - No text field or Android software keyboard during ordinary clocking
 - Only valid current actions: **Clock in**; **Start meal** and **Clock out**; or **End meal**
 - Clear punch confirmation followed by automatic return to the private code screen
@@ -30,6 +31,8 @@ The printable packet is a draft review record. Printing does not approve, sign, 
 ## Documentation
 
 - [Architecture, data flows, and table dictionary](docs/ARCHITECTURE-AND-DATA.md)
+- [Semantic design definition and domain glossary](docs/DESIGN-DEFINITION.md)
+- [Architecture audit, remaining risks, and production gates](docs/ARCHITECTURE-AUDIT.md)
 - [Calculation contract and invariants](docs/CALCULATION-CONTRACT.md)
 - [Reports, outputs, and evidentiary purpose](docs/REPORTS-AND-EVIDENCE.md)
 - [Manager, kiosk, backup, retention, and deployment guide](docs/OPERATIONS-GUIDE.md)

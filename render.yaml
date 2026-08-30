@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: nanshe-service
+    runtime: docker
+    plan: 0.5c-512mb
+    region: oregon
+    numInstances: 1
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health
+    maxShutdownDelaySeconds: 30
+    preDeployCommand: npm run db:migrate && npm run db:seed
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nanshe-postgres
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CLOCK_CODE_PEPPER
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Steward Owner
+      - key: COMPANY_NAME
+        value: My Company
+      - key: KIOSK_ALLOWED_ORIGINS
+        value: capacitor://localhost,https://localhost
+      - key: NEXT_PUBLIC_APP_NAME
+        value: Nanshe
+
+databases:
+  - name: nanshe-postgres
+    databaseName: nanshe
+    user: nanshe
+    plan: 0.1c-256mb
+    region: oregon
+    postgresMajorVersion: "17"
+    diskSizeGB: 15
+    ipAllowList: []

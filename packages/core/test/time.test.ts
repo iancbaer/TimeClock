@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { allowedPunchTypes, calculateTimesheet, payPeriodContaining } from "../src/index.js";
+import {
+  allowedPunchTypes,
+  calculateTimesheet,
+  nextEmployeeNumber,
+  normalizeEmployeeNumber,
+  payPeriodContaining,
+} from "../src/index.js";
 
 const settings = {
   timeZone: "America/Los_Angeles",
@@ -70,5 +76,17 @@ describe("pay periods", () => {
     expect(payPeriodContaining("2026-08-24", "2026-09-01", "America/Los_Angeles")).toBe("2026-08-24");
     expect(payPeriodContaining("2026-08-24", "2026-09-07", "America/Los_Angeles")).toBe("2026-09-07");
     expect(payPeriodContaining("2026-08-24", "2026-08-23", "America/Los_Angeles")).toBe("2026-08-10");
+  });
+});
+
+describe("official employee numbers", () => {
+  it("uses the first available number in the 1xxx namespace", () => {
+    expect(nextEmployeeNumber(["1001", "1002", "1004"])).toBe("1003");
+    expect(normalizeEmployeeNumber(" 1007 ")).toBe("1007");
+  });
+
+  it("rejects numbers outside the reserved range", () => {
+    expect(() => normalizeEmployeeNumber("1000")).toThrow(/1001/);
+    expect(() => normalizeEmployeeNumber("2001")).toThrow(/1001/);
   });
 });

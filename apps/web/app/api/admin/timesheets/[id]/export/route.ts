@@ -21,6 +21,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       ["Generated at", sheet.report.generatedAt],
       ["Calculation version", sheet.report.calculationVersion],
       ["Employee", `${sheet.employee.firstName} ${sheet.employee.lastName}`],
+      ["Official employee number", sheet.employee.employeeNumber],
       ["Record ID", sheet.employee.id],
       ["Pay period", `${sheet.summary.periodStart} through ${sheet.summary.periodEnd}`],
       [],

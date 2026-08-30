@@ -6,7 +6,7 @@ import { ClockCodeKeypad } from "./ClockCodeKeypad";
 type PunchType = "WORK_IN" | "MEAL_START" | "MEAL_END" | "WORK_OUT";
 
 interface SessionData {
-  employee: { id: string; firstName: string; lastName: string };
+  employee: { id: string; employeeNumber: string; firstName: string; lastName: string };
   sessionToken: string;
   companyName: string;
   timeZone: string;
@@ -36,7 +36,7 @@ export function Kiosk() {
   const [clockCode, setClockCode] = useState("");
   const [session, setSession] = useState<SessionData | null>(null);
   const [sessionToken, setSessionToken] = useState("");
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [correctionOpen, setCorrectionOpen] = useState(false);
@@ -48,8 +48,12 @@ export function Kiosk() {
   const confirmationTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    const initial = window.setTimeout(() => setNow(new Date()), 0);
     const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
   }, []);
 
   const returnToCode = useCallback((notice?: { kind: "error" | "success"; text: string }) => {
@@ -184,8 +188,8 @@ export function Kiosk() {
       </section>
 
       <section className="clock-card" aria-live="polite">
-        <p className="live-date">{formatter.format(now).split(" at ")[0]}</p>
-        <p className="live-time">{formatter.format(now).split(" at ")[1]}</p>
+        <p className="live-date">{now ? formatter.format(now).split(" at ")[0] : "Current date"}</p>
+        <p className="live-time">{now ? formatter.format(now).split(" at ")[1] : "—:—"}</p>
       </section>
 
       {message && <div className={`notice ${message.kind}`} role="status">{message.text}</div>}
@@ -202,7 +206,7 @@ export function Kiosk() {
       ) : (
         <div className="kiosk-grid">
           <section className="panel action-panel">
-            <div className="welcome-row"><div><p className="eyebrow">Your current options</p><h2>{session.employee.firstName} {session.employee.lastName}</h2></div><button className="button quiet" type="button" onClick={() => returnToCode()}>Done</button></div>
+            <div className="welcome-row"><div><p className="eyebrow">Your current options</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number-label">Employee {session.employee.employeeNumber}</p></div><button className="button quiet" type="button" onClick={() => returnToCode()}>Done</button></div>
             <div className={`punch-actions action-count-${session.allowedPunchTypes.length}`}>
               {session.allowedPunchTypes.map((type) => (
                 <button className={`punch-button ${type.toLowerCase()}`} key={type} type="button" disabled={busy} onClick={() => punch(type)}>

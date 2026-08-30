@@ -52,6 +52,7 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
   return {
     employee: {
       id: employee.id,
+      employeeNumber: employee.employeeNumber,
       firstName: employee.firstName,
       lastName: employee.lastName,
       active: employee.active,

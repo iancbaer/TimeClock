@@ -4,7 +4,7 @@
 
 Steward’s employee report is a single printable 14-day packet. It includes:
 
-- worker identity and pay-period boundaries;
+- worker name, official employee number, internal record identity, and pay-period boundaries;
 - exact work, paid time credit, regular payable time, overtime, and total payable time;
 - two separate seven-day workweeks;
 - each day’s effective punch activity, exact meal duration, calculated totals, and review flags;
@@ -33,7 +33,7 @@ Detailed state-machine and edge-case invariants are in [CALCULATION-CONTRACT.md]
 
 ### CSV
 
-The CSV contains document purpose/status, generation metadata, employee/internal record identity, period bounds, day-level punches and totals, flags, period totals, and correction history. It is UTF-8, spreadsheet-compatible, and generated on demand from current authoritative data. It does not contain clock codes or password material.
+The CSV contains document purpose/status, generation metadata, official employee number, internal record identity, period bounds, day-level punches and totals, flags, period totals, and correction history. It is UTF-8, spreadsheet-compatible, and generated on demand from current authoritative data. It does not contain clock codes or password material.
 
 ### Print/PDF
 

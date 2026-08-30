@@ -56,6 +56,7 @@ Workers submit correction requests; they never overwrite punches. A Steward user
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable internal employee identity; never reused. |
+| `employeeNumber` | Unique official display/report identifier from `1001` through `1999`. It is never accepted as a worker authentication credential. |
 | `firstName`, `lastName` | Display/report identity. |
 | `clockCodeLookup` | Unique HMAC digest used to locate a code without storing it. Nullable only for migrated workers awaiting rotation. |
 | `clockCodeHash` | Bcrypt verifier. Nullable only for migrated workers awaiting rotation. |
@@ -105,6 +106,6 @@ Append-only actor/action/entity/time metadata for consequential changes. Metadat
 
 ## Authority and derived state
 
-- Authoritative: original `Punch`, `PunchRevision`, `CorrectionRequest`, settings, employee identity, and audit events.
+- Authoritative: original `Punch`, `PunchRevision`, `CorrectionRequest`, settings, official and internal employee identity, and audit events.
 - Derived and rebuildable: daily/week/pay-period totals, flags, effective punch views, CSV, and printed/PDF packets.
 - Never inferred silently: missing punch time, meal time, contradictory transitions, or signatures.

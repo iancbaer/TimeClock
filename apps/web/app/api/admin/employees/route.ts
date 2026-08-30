@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { nextEmployeeNumber } from "@nanshe/core";
 import { requireAdmin } from "@/lib/auth";
 import { createClockCodeCredentials } from "@/lib/clock-code";
 import { prisma } from "@/lib/db";
@@ -10,11 +11,12 @@ export async function GET() {
   try {
     await requireAdmin();
     const employees = await prisma.employee.findMany({
-      orderBy: [{ active: "desc" }, { lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, firstName: true, lastName: true, active: true, createdAt: true, clockCodeHash: true },
+      orderBy: [{ active: "desc" }, { employeeNumber: "asc" }],
+      select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true, createdAt: true, clockCodeHash: true },
     });
     return NextResponse.json({
       employees: employees.map(({ clockCodeHash, ...employee }) => ({ ...employee, codeConfigured: Boolean(clockCodeHash) })),
+      suggestedEmployeeNumber: nextEmployeeNumber(employees.map((employee) => employee.employeeNumber)),
     });
   } catch (error) {
     return errorResponse(error);
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
     const employee = await prisma.$transaction(async (tx) => {
       const created = await tx.employee.create({
         data: { ...employeeFields, ...credentials },
-        select: { id: true, firstName: true, lastName: true, active: true },
+        select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true },
       });
       await tx.auditEvent.create({
         data: {
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
           actorId: admin.id,
           entityType: "Employee",
           entityId: created.id,
-          metadata: { changedFields: ["firstName", "lastName", "clockCode"] },
+          metadata: { changedFields: ["employeeNumber", "firstName", "lastName", "clockCode"] },
         },
       });
       return created;
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ employee }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return errorResponse(new HttpError(409, "That private clock code is already assigned to another employee."));
+      return errorResponse(new HttpError(409, "That employee number or private clock code is already assigned."));
     }
     return errorResponse(error);
   }

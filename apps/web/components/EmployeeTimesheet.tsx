@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface SheetData {
-  employee: { id: string; firstName: string; lastName: string; active: boolean; codeConfigured: boolean };
+  employee: { id: string; employeeNumber: string; firstName: string; lastName: string; active: boolean; codeConfigured: boolean };
   settings: { companyName: string; timeZone: string; roundingMode: string; roundingIntervalMinutes: number };
   summary: {
     periodStart: string;
@@ -144,7 +144,7 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
       {sheet && (
         <>
         <form className="panel manager-access-card no-print" onSubmit={rotateClockCode}>
-          <div><p className="eyebrow">Worker access</p><h2>{sheet.employee.codeConfigured ? "Rotate private clock code" : "Set private clock code"}</h2><p>Use 6–10 digits. The code is saved as protected digests and cannot be recovered or displayed later.</p></div>
+          <div><p className="eyebrow">Worker access · Employee {sheet.employee.employeeNumber}</p><h2>{sheet.employee.codeConfigured ? "Rotate private clock code" : "Set private clock code"}</h2><p>The official employee number is not a sign-in credential. Set a separate private 6–10 digit code; it is saved as protected digests and cannot be recovered or displayed later.</p></div>
           <label>New clock code<input type="password" inputMode="numeric" pattern="[0-9]{6,10}" autoComplete="new-password" value={clockCode} onChange={(event) => setClockCode(event.target.value.replace(/\D/g, "").slice(0, 10))} required /></label>
           <button className="button secondary" disabled={codeBusy}>{codeBusy ? "Saving…" : "Save new code"}</button>
           {codeNotice && <p className="manager-tool-notice" role="status">{codeNotice}</p>}
@@ -154,7 +154,8 @@ export function EmployeeTimesheet({ employeeId, initialPeriodStart }: { employee
             <div><p className="eyebrow">{sheet.settings.companyName}</p><h1>Pay-period evidence packet</h1></div>
             <div className="sheet-identity">
               <strong>{sheet.employee.firstName} {sheet.employee.lastName}</strong>
-              <span>Record {sheet.employee.id.slice(-8).toUpperCase()}</span>
+              <span>Employee {sheet.employee.employeeNumber}</span>
+              <span>Internal record {sheet.employee.id.slice(-8).toUpperCase()}</span>
               <span>{sheet.summary.periodStart} — {sheet.summary.periodEnd}</span>
             </div>
           </header>

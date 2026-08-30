@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type PunchType = "WORK_IN" | "MEAL_START" | "MEAL_END" | "WORK_OUT";
 interface Session {
-  employee: { firstName: string; lastName: string };
+  employee: { employeeNumber: string; firstName: string; lastName: string };
   sessionToken: string;
   companyName: string;
   timeZone: string;
@@ -159,7 +159,7 @@ export function App() {
       <p className="eyebrow">Your private time record</p><h2>Enter your clock code</h2><p className="muted">Use the keypad below. The code is never shown on this shared screen.</p>
       <Keypad value={clockCode} onChange={setClockCode} submit={() => void signIn()} busy={busy} />
     </form> : <div className="grid">
-      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Your current options</p><h2>{session.employee.firstName} {session.employee.lastName}</h2></div><button className="button quiet" onClick={() => returnToCode()}>Done</button></div>
+      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Your current options</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number">Employee {session.employee.employeeNumber}</p></div><button className="button quiet" onClick={() => returnToCode()}>Done</button></div>
         <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>{labels[type]}</strong><small>{type === "MEAL_START" ? "Only when fully relieved" : "Secure server time"}</small></button>)}</div>
         <p className="break"><b>Paid rest breaks:</b> remain clocked in. Use meal punches only for an unpaid, duty-free meal.</p>
       </section>

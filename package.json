@@ -19,6 +19,7 @@
     "steward:dist": "npm run dist --workspace @steward/desktop",
     "nanshe:dist": "npm run dist --workspace @nanshe/desktop",
     "android:sync": "npm run sync --workspace @nanshe/android",
+    "demo:provision": "node scripts/provision-synthetic-employees.mjs",
     "smoke": "node scripts/api-smoke.mjs"
   },
   "engines": {

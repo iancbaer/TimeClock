@@ -29,33 +29,45 @@ async function main() {
     },
   });
 
-  await prisma.adminUser.upsert({
-    where: { email: adminEmail },
-    update: {
-      name: process.env.ADMIN_NAME ?? "Steward Owner",
-      passwordHash: await hash(adminPassword, 12),
-    },
-    create: {
-      email: adminEmail,
-      name: process.env.ADMIN_NAME ?? "Steward Owner",
-      passwordHash: await hash(adminPassword, 12),
-    },
-  });
+  const existingAdmin = await prisma.adminUser.findUnique({ where: { email: adminEmail } });
+  if (existingAdmin) {
+    await prisma.adminUser.update({
+      where: { id: existingAdmin.id },
+      data: { name: process.env.ADMIN_NAME ?? "Steward Owner" },
+    });
+  } else {
+    await prisma.adminUser.create({
+      data: {
+        email: adminEmail,
+        name: process.env.ADMIN_NAME ?? "Steward Owner",
+        passwordHash: await hash(adminPassword, 12),
+      },
+    });
+  }
 
   if (process.env.SEED_CLOCK_CODE) {
-    const credentials = await createClockCodeCredentials(process.env.SEED_CLOCK_CODE);
-    const existing = await prisma.employee.findFirst({
-      where: { firstName: "Sample", lastName: "Employee" },
-      orderBy: { createdAt: "asc" },
-    });
-    if (existing) {
-      await prisma.employee.update({
-        where: { id: existing.id },
-        data: { ...credentials, legacyEmployeeCode: null, legacyPinHash: null },
+    const existing = await prisma.employee.findUnique({ where: { employeeNumber: "1001" } })
+      ?? await prisma.employee.findFirst({
+        where: { firstName: "Sample", lastName: "Employee" },
+        orderBy: { createdAt: "asc" },
       });
+    if (existing) {
+      if (!existing.clockCodeHash) {
+        const credentials = await createClockCodeCredentials(process.env.SEED_CLOCK_CODE);
+        await prisma.employee.update({
+          where: { id: existing.id },
+          data: {
+            employeeNumber: "1001",
+            ...credentials,
+            legacyEmployeeCode: null,
+            legacyPinHash: null,
+          },
+        });
+      }
     } else {
+      const credentials = await createClockCodeCredentials(process.env.SEED_CLOCK_CODE);
       await prisma.employee.create({
-        data: { firstName: "Sample", lastName: "Employee", ...credentials },
+        data: { employeeNumber: "1001", firstName: "Sample", lastName: "Employee", ...credentials },
       });
     }
   }

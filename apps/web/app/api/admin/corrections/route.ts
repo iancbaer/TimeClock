@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const corrections = await prisma.correctionRequest.findMany({
       where: status === "ALL" ? {} : { status: status as "PENDING" | "APPROVED" | "REJECTED" },
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true } },
+        employee: { select: { id: true, employeeNumber: true, firstName: true, lastName: true } },
         targetPunch: { select: { id: true, type: true, occurredAt: true } },
         resolvedBy: { select: { name: true } },
       },

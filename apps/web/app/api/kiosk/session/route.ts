@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     ]);
     const punches = await effectiveRecentPunches(employee.id, settings.timeZone);
     return NextResponse.json({
-      employee: { id: employee.id, firstName: employee.firstName, lastName: employee.lastName },
+      employee: { id: employee.id, employeeNumber: employee.employeeNumber, firstName: employee.firstName, lastName: employee.lastName },
       sessionToken: await createKioskSession(employee.id),
       companyName: settings.companyName,
       timeZone: settings.timeZone,

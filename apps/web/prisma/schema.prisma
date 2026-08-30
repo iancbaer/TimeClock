@@ -50,6 +50,7 @@ model CompanySettings {
 
 model Employee {
   id                 String              @id @default(cuid())
+  employeeNumber     String              @unique
   firstName          String
   lastName           String
   clockCodeLookup    String?             @unique
@@ -62,6 +63,7 @@ model Employee {
   punches            Punch[]
   corrections        CorrectionRequest[]
 
+  @@index([active, employeeNumber])
   @@index([active, lastName, firstName])
 }
 

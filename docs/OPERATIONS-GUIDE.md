@@ -5,9 +5,10 @@
 ### Add a worker
 
 1. Sign in to Steward at `/admin`.
-2. Enter the worker’s name and assign a unique 6–10 digit private clock code.
-3. Give the code directly to that worker. Steward intentionally cannot display it later.
-4. If a code is forgotten or may be known by someone else, open the worker’s pay-period record and use **Rotate private clock code**.
+2. Assign the next unique official employee number. Steward suggests the first available number beginning with `1001`.
+3. Enter the worker’s name and assign a separate unique 6–10 digit private clock code. The official number is not a sign-in credential.
+4. Give the private code directly to that worker. Steward intentionally cannot display it later.
+5. If a code is forgotten or may be known by someone else, open the worker’s pay-period record and use **Rotate private clock code**.
 
 Migrated workers with `Clock code setup required` cannot use Nanshe until a manager assigns a new code. Do not reuse a legacy employee number or a shared departmental code.
 
@@ -69,3 +70,18 @@ Current implementation supports Docker Compose, one Next.js service, and Postgre
 8. Use an organization-controlled Android release signing key; CI’s debug APK is for testing.
 
 These production controls are recommended; reverse proxying, off-host backup automation, centralized monitoring, mobile-device management, and multi-instance shared throttling are not bundled by this repository.
+
+### Recommended managed host: Render
+
+`render.yaml` defines the current small-employer target: one paid Docker web instance and one paid private PostgreSQL instance in Oregon. The Blueprint generates the signing secret and clock-code pepper, prompts for the initial Steward email/password, runs migrations and idempotent initialization before deploy, and uses `/api/health` for readiness.
+
+1. Fork or connect the public GitHub repository to an organization-controlled account.
+2. In Render, create a Blueprint from `render.yaml`.
+3. Enter a private Steward email and a strong unique password when prompted. Do not set `SEED_CLOCK_CODE` in production.
+4. Confirm the Blueprint selects one web instance and the paid PostgreSQL plan; do not downgrade the production database to free.
+5. After first deploy, sign in to Steward, set the real company label and pay-period settings, create workers, and deliver private codes out of band.
+6. Run `SMOKE_BASE_URL=https://your-service.example npm run smoke` only with a designated synthetic test worker and test manager—not a real worker credential.
+7. Enable platform notifications, verify managed recovery, schedule a separate encrypted logical export, and complete an isolated restore exercise.
+8. Configure the Android/desktop clients with the final HTTPS service URL and restrict the device to kiosk use.
+
+The deployment stays at one application instance because authentication failure state is currently process-local. Before adding replicas, implement a shared limiter and re-run the security and failure tests. The Blueprint is infrastructure configuration, not evidence that the service has actually been deployed or that backups have been restored.

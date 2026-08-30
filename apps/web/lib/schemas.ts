@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const employeeNumberSchema = z.string().trim().regex(/^1\d{3}$/).refine(
+  (value) => Number(value) >= 1001 && Number(value) <= 1999,
+  "Employee number must be between 1001 and 1999.",
+);
+
 export const clockCodeSchema = z.object({
   clockCode: z.string().regex(/^\d{6,10}$/, "Clock code must contain 6 to 10 digits."),
 });
@@ -19,12 +24,14 @@ export const correctionSchema = z.object({
 });
 
 export const employeeCreateSchema = z.object({
+  employeeNumber: employeeNumberSchema,
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
   clockCode: z.string().regex(/^\d{6,10}$/),
 });
 
 export const employeeUpdateSchema = z.object({
+  employeeNumber: employeeNumberSchema.optional(),
   firstName: z.string().trim().min(1).max(80).optional(),
   lastName: z.string().trim().min(1).max(80).optional(),
   clockCode: z.string().regex(/^\d{6,10}$/).optional(),

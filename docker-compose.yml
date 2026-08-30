@@ -14,9 +14,10 @@ services:
       timeout: 5s
       retries: 12
 
-  app:
+  migrate:
     build: .
-    restart: unless-stopped
+    image: nanshe-local:latest
+    restart: "no"
     depends_on:
       database:
         condition: service_healthy
@@ -29,6 +30,23 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:-Steward Owner}
       COMPANY_NAME: ${COMPANY_NAME:-My Company}
       SEED_CLOCK_CODE: ${SEED_CLOCK_CODE:-}
+      KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nanshe}
+    command: ["sh", "-c", "npm run db:migrate && npm run db:seed"]
+
+  app:
+    build: .
+    image: nanshe-local:latest
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://timeclock:${POSTGRES_PASSWORD}@database:5432/timeclock?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
+      CLOCK_CODE_PEPPER: ${CLOCK_CODE_PEPPER:?Set CLOCK_CODE_PEPPER in .env}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nanshe}
     ports:

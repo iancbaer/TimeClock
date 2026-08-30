@@ -8,12 +8,13 @@ The worker screen hides Steward, reveals a worker’s name/recent record only af
 
 ## Private clock codes
 
+- The official `1xxx` employee number is a visible record identifier, never a sign-in value. Sequential numbers do not reduce authentication strength because they are not accepted by the authentication API.
 - Codes are 6–10 numeric digits and must be unique.
 - Plaintext exists only transiently in the active keypad state and HTTPS request body. It is cleared immediately after the authentication response and never written to local storage, cookies, logs, audit metadata, CSV, or reports.
 - PostgreSQL stores a unique HMAC-SHA-256 lookup derived with `CLOCK_CODE_PEPPER` and a separate bcrypt cost-12 verifier.
 - The HMAC enables one-record lookup and database uniqueness without a plaintext public employee number. Bcrypt adds a slow verification step. A stolen database alone is harder to enumerate without the separately stored pepper.
 - Successful authentication returns a signed 10-minute bearer token kept only in application memory. Ordinary punch/correction calls never resend the code.
-- Eight failed attempts from one derived network source within five minutes trigger a one-minute block. The application stores only a transient hash of the source, not failed codes.
+- Eight failed worker attempts from one derived network source within five minutes trigger a one-minute block. Six failed Steward attempts trigger a five-minute block. The application stores only a transient hash of the source, not failed codes, emails, or passwords.
 
 Tradeoff: numeric codes are easier on a shared tablet but weaker than long passwords. The current in-memory limiter is appropriate only for a small, single-instance deployment. It resets on process restart, trusts proxy IP headers as configured by the deployment, and is not shared between replicas. Production internet exposure should add reverse-proxy or shared-store throttling, monitoring, and alerting without logging submitted secrets.
 
