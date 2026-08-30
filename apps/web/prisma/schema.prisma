@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PunchType {
+  WORK_IN
+  MEAL_START
+  MEAL_END
+  WORK_OUT
+}
+
+enum PunchSource {
+  KIOSK
+  ADMIN_CORRECTION
+}
+
+enum CorrectionKind {
+  MISSED_PUNCH
+  WRONG_TIME
+  OTHER
+}
+
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RoundingMode {
+  EXACT
+  EMPLOYEE_FAVOR_DAILY_CEILING
+}
+
+model CompanySettings {
+  id                      String       @id @default("default")
+  companyName             String       @default("My Company")
+  timeZone                String       @default("America/Los_Angeles")
+  payPeriodAnchor         DateTime     @db.Date
+  workweekStartsOn        Int          @default(1)
+  roundingMode            RoundingMode @default(EMPLOYEE_FAVOR_DAILY_CEILING)
+  roundingIntervalMinutes Int          @default(15)
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+}
+
+model Employee {
+  id          String              @id @default(cuid())
+  employeeCode String            @unique
+  firstName   String
+  lastName    String
+  pinHash     String
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  punches     Punch[]
+  corrections CorrectionRequest[]
+
+  @@index([active, lastName, firstName])
+}
+
+model AdminUser {
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  name                String
+  passwordHash        String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  resolvedCorrections CorrectionRequest[] @relation("CorrectionResolver")
+  punchRevisions      PunchRevision[]
+}
+
+model Punch {
+  id                  String              @id @default(cuid())
+  employeeId          String
+  type                PunchType
+  occurredAt          DateTime
+  recordedAt          DateTime            @default(now())
+  source              PunchSource         @default(KIOSK)
+  deviceLabel         String?
+  idempotencyKey      String?             @unique
+  correctionRequestId String?             @unique
+  employee            Employee            @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  correctionRequest   CorrectionRequest?  @relation("CreatedPunch", fields: [correctionRequestId], references: [id])
+  revisions           PunchRevision[]
+  targetedCorrections CorrectionRequest[] @relation("TargetPunch")
+
+  @@index([employeeId, occurredAt])
+  @@index([recordedAt])
+}
+
+model PunchRevision {
+  id                  String             @id @default(cuid())
+  punchId             String
+  effectiveOccurredAt DateTime?
+  effectiveType       PunchType?
+  voided              Boolean            @default(false)
+  reason              String
+  adminId             String
+  correctionRequestId String?            @unique
+  createdAt           DateTime            @default(now())
+  punch               Punch               @relation(fields: [punchId], references: [id], onDelete: Restrict)
+  admin               AdminUser           @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  correctionRequest   CorrectionRequest?  @relation("CorrectionRevision", fields: [correctionRequestId], references: [id])
+
+  @@index([punchId, createdAt])
+}
+
+model CorrectionRequest {
+  id                  String            @id @default(cuid())
+  employeeId          String
+  targetPunchId       String?
+  kind                CorrectionKind
+  requestedType       PunchType?
+  requestedOccurredAt DateTime?
+  note                String
+  status              CorrectionStatus  @default(PENDING)
+  submittedAt         DateTime           @default(now())
+  resolvedAt          DateTime?
+  resolvedById        String?
+  resolutionNote      String?
+  employee            Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  targetPunch         Punch?             @relation("TargetPunch", fields: [targetPunchId], references: [id], onDelete: Restrict)
+  resolvedBy          AdminUser?         @relation("CorrectionResolver", fields: [resolvedById], references: [id], onDelete: Restrict)
+  createdPunch        Punch?             @relation("CreatedPunch")
+  punchRevision       PunchRevision?     @relation("CorrectionRevision")
+
+  @@index([status, submittedAt])
+  @@index([employeeId, submittedAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  action     String
+  actorType  String
+  actorId    String?
+  entityType String
+  entityId   String
+  metadata   Json
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
+}

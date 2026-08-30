@@ -1,0 +1,19 @@
+{
+  "name": "@nanshe/android",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "npm run build --workspace @nanshe/kiosk && cap sync android",
+    "add": "npm run build --workspace @nanshe/kiosk && cap add android",
+    "open": "cap open android",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/core": "8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connect Nanshe</title>
+    <style>
+      :root { color:#172729; background:#f1f2e9; font-family:Inter,system-ui,sans-serif; }
+      * { box-sizing:border-box; } body { display:grid;min-height:100vh;margin:0;place-items:center;padding:24px; }
+      main { width:min(520px,100%);border:1px solid #d9ddd3;border-radius:20px;padding:32px;background:#fffef9;box-shadow:0 18px 50px rgba(16,42,46,.09); }
+      .mark { display:grid;width:64px;height:64px;place-items:center;border-radius:19px;color:white;background:#102a2e;font-size:32px;font-weight:900; }
+      p { color:#657274;line-height:1.55; } label { display:grid;gap:8px;margin:24px 0 16px;font-weight:750; }
+      input { border:1px solid #c9d0c8;border-radius:10px;padding:14px;font:inherit; }
+      button { width:100%;border:0;border-radius:10px;padding:14px;color:white;background:#1d675f;font:inherit;font-weight:800;cursor:pointer; }
+      .error { color:#7f2f2a;background:#fff4f1;border-radius:10px;padding:12px; } small { display:block;margin-top:16px;color:#657274; }
+    </style>
+  </head>
+  <body><main>
+    <div class="mark">N</div>
+    <p style="color:#1d675f;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:20px 0 4px">Worker timekeeping</p>
+    <h1 style="margin-top:0">Connect Nanshe</h1>
+    <p>Nanshe protects an accurate, auditable record so every hour worked can be reviewed and paid.</p>
+    <div id="error" class="error" hidden></div>
+    <form id="form"><label>Nanshe service address<input id="url" type="url" placeholder="https://nanshe.example.com" required /></label><button>Save and connect</button></form>
+    <small>HTTPS is required except when connecting to localhost for development.</small>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const input = document.querySelector("#url"); const error = document.querySelector("#error");
+    input.value = params.get("current") || "";
+    if (params.get("error")) { error.textContent = params.get("error"); error.hidden = false; }
+    document.querySelector("#form").addEventListener("submit", async (event) => {
+      event.preventDefault(); error.hidden = true;
+      const result = await window.nansheDesktop.saveServerUrl(input.value);
+      if (!result.ok) { error.textContent = result.error; error.hidden = false; }
+    });
+  </script></body>
+</html>

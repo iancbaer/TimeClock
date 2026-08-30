@@ -1,0 +1,43 @@
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: timeclock
+      POSTGRES_USER: timeclock
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - timeclock-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timeclock -d timeclock"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://timeclock:${POSTGRES_PASSWORD}@database:5432/timeclock?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Steward Owner}
+      COMPANY_NAME: ${COMPANY_NAME:-My Company}
+      SEED_EMPLOYEE_CODE: ${SEED_EMPLOYEE_CODE:-}
+      SEED_EMPLOYEE_PIN: ${SEED_EMPLOYEE_PIN:-}
+      KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nanshe}
+    ports:
+      - "127.0.0.1:${TIMECLOCK_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  timeclock-postgres:

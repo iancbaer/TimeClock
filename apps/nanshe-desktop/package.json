@@ -1,0 +1,52 @@
+{
+  "name": "@nanshe/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ubuntu desktop worker timekeeping app for Nanshe",
+  "author": {
+    "name": "Ian Baer",
+    "email": "iancbaer@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/iancbaer/Nanshe",
+  "desktopName": "nanshe.desktop",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage deb",
+    "lint": "node --check main.cjs && node --check preload.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.iancbaer.nanshe",
+    "productName": "Nanshe",
+    "executableName": "nanshe",
+    "artifactName": "Nanshe-${version}-${arch}.${ext}",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "settings.html",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "syncDesktopName": true,
+      "desktop": {
+        "entry": {
+          "Name": "Nanshe",
+          "Comment": "Accurate worker timekeeping",
+          "StartupWMClass": "Nanshe"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+out/
+coverage/
+*.log
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+apps/android/android/
+apps/android/ios/
+apps/desktop/release/
+apps/nanshe-desktop/release/
+apps/web/prisma/dev.db*
+.DS_Store
+Thumbs.db

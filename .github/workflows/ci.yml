@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run build --workspace @nanshe/kiosk
+
+  api-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: timeclock
+          POSTGRES_USER: timeclock
+          POSTGRES_PASSWORD: smoke-database-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U timeclock -d timeclock"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://timeclock:smoke-database-password@127.0.0.1:5432/timeclock?schema=public
+      AUTH_SECRET: smoke-auth-secret-must-be-at-least-32-characters
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: development-only-password
+      ADMIN_NAME: CI Administrator
+      SEED_EMPLOYEE_CODE: "1001"
+      SEED_EMPLOYEE_PIN: "2468"
+      KIOSK_ALLOWED_ORIGINS: https://localhost,capacitor://localhost
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run build
+      - run: npm run start --workspace @nanshe/web > /tmp/timeclock.log 2>&1 &
+      - run: npx --yes wait-on@9.0.1 http://127.0.0.1:3000/api/health
+      - run: npm run smoke
+      - if: failure()
+        run: cat /tmp/timeclock.log

@@ -1,0 +1,74 @@
+name: Build Nanshe and Steward apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  steward-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: windows
+          - os: ubuntu-latest
+            artifact: ubuntu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run dist --workspace @steward/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: steward-${{ matrix.artifact }}
+          path: apps/desktop/release/*
+          if-no-files-found: error
+
+  nanshe-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run dist --workspace @nanshe/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanshe-ubuntu
+          path: apps/nanshe-desktop/release/*
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci
+      - run: npm run build --workspace @nanshe/kiosk
+      - working-directory: apps/android
+        run: npx cap add android && npx cap sync android
+      - working-directory: apps/android/android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanshe-android
+          path: apps/android/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
