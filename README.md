@@ -100,7 +100,7 @@ npm test
 npm run build
 ```
 
-With a synthetic employee on a running server, `npm run smoke` verifies PIN entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
+With a designated test employee on a running server, set `SMOKE_EMPLOYEE_NUMBER` and `SMOKE_EMPLOYEE_PIN`; `npm run smoke` verifies PIN entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
 
 ## Client builds
 

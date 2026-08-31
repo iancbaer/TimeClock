@@ -48,6 +48,7 @@ jobs:
       ADMIN_PASSWORD: development-only-password
       ADMIN_NAME: CI Administrator
       SEED_SYNTHETIC_EMPLOYEE: "true"
+      SMOKE_EMPLOYEE_PIN: "7380"
       KIOSK_ALLOWED_ORIGINS: https://localhost,capacitor://localhost
     steps:
       - uses: actions/checkout@v4

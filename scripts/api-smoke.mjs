@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 const baseUrl = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const employeeNumber = process.env.SMOKE_EMPLOYEE_NUMBER ?? "1001";
+const employeePin = process.env.SMOKE_EMPLOYEE_PIN ?? "7380";
 const adminEmail = process.env.ADMIN_EMAIL ?? "admin@example.com";
 const adminPassword = process.env.ADMIN_PASSWORD ?? "development-only-password";
 const sourceSegment = crypto.randomUUID().slice(0, 4);
@@ -23,7 +24,7 @@ assert.equal(health.response.headers.get("access-control-allow-origin"), "https:
 const badAttempt = await fetch(`${baseUrl}/api/kiosk/session`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "X-Forwarded-For": failedCodeSource },
-  body: JSON.stringify({ employeeNumber: "1998" }),
+  body: JSON.stringify({ pin: "1998" }),
 });
 assert.equal(badAttempt.status, 401);
 assert.equal((await badAttempt.text()).includes("1998"), false, "An unknown ID must not be echoed.");
@@ -32,13 +33,13 @@ for (let attempt = 0; attempt < 20; attempt += 1) {
   await fetch(`${baseUrl}/api/kiosk/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Forwarded-For": limitedCodeSource },
-    body: JSON.stringify({ employeeNumber: "1998" }),
+    body: JSON.stringify({ pin: "1998" }),
   });
 }
 const limited = await fetch(`${baseUrl}/api/kiosk/session`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "X-Forwarded-For": limitedCodeSource },
-  body: JSON.stringify({ employeeNumber: "1998" }),
+  body: JSON.stringify({ pin: "1998" }),
 });
 assert.equal(limited.status, 429);
 assert.ok(Number(limited.headers.get("retry-after")) >= 1);
@@ -46,11 +47,11 @@ assert.ok(Number(limited.headers.get("retry-after")) >= 1);
 const initial = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json", Origin: "https://localhost" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 assert.ok(initial.body.employee.id);
 assert.ok(initial.body.sessionToken);
-assert.equal(initial.body.employee.employeeNumber, employeeNumber);
+assert.equal(initial.body.employee.firstName, "Erwin");
 assert.equal(initial.body.allowedPunchTypes.length, 1);
 let sessionToken = initial.body.sessionToken;
 
@@ -78,7 +79,7 @@ assert.equal((await punchResponse("WORK_IN")).status, 409, "A worker who is cloc
 const afterIn = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 assert.deepEqual(afterIn.body.allowedPunchTypes, ["WORK_OUT"]);
 const out = await punch("WORK_OUT");
@@ -86,7 +87,7 @@ assert.equal((await punchResponse("WORK_OUT")).status, 409, "A worker who is clo
 const afterOut = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 assert.deepEqual(afterOut.body.allowedPunchTypes, ["WORK_IN"]);
 const correctedTime = new Date(new Date(out.body.punch.occurredAt).getTime() + 60_000).toISOString();
@@ -94,7 +95,7 @@ const correctedTime = new Date(new Date(out.body.punch.occurredAt).getTime() + 6
 const refreshed = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json", Origin: "https://localhost" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 sessionToken = refreshed.body.sessionToken;
 
@@ -135,19 +136,19 @@ assert.equal(limitedLogin.status, 429);
 assert.ok(Number(limitedLogin.headers.get("retry-after")) >= 1);
 
 const employees = await request("/api/admin/employees", { headers: { Cookie: cookie } });
-const employee = employees.body.employees.find((item) => item.employeeNumber === "1001");
+const employee = employees.body.employees.find((item) => item.employeeNumber === employeeNumber);
 assert.ok(employee);
-assert.equal(employee.employeeNumber, "1001");
+assert.equal(employee.employeeNumber, employeeNumber);
 assert.equal("clockCodeHash" in employee, false);
 assert.equal("clockCodeLookup" in employee, false);
 assert.equal("legacyEmployeeCode" in employee, false);
 
-const duplicateEmployeeNumber = await fetch(`${baseUrl}/api/admin/employees`, {
+const duplicateEmployeePin = await fetch(`${baseUrl}/api/admin/employees`, {
   method: "POST",
   headers: { "Content-Type": "application/json", Cookie: cookie },
-  body: JSON.stringify({ employeeNumber, firstName: "Duplicate", lastName: "Number" }),
+  body: JSON.stringify({ pin: employeePin, firstName: "Duplicate", lastName: "PIN" }),
 });
-assert.equal(duplicateEmployeeNumber.status, 409, "Employee IDs must be unique.");
+assert.equal(duplicateEmployeePin.status, 409, "Employee PINs must be unique.");
 
 const corrections = await request("/api/admin/corrections?status=PENDING", { headers: { Cookie: cookie } });
 const correction = corrections.body.corrections.find((item) => item.targetPunch?.id === out.body.punch.id);
@@ -176,7 +177,7 @@ const movedAcrossBoundary = `${shiftIsoDate(sheet.body.summary.periodStart, 19)}
 const boundarySession = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json", Origin: "https://localhost" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 const boundaryRequest = await request("/api/kiosk/corrections", {
   method: "POST",
@@ -203,7 +204,7 @@ assert.ok(nextPunchesAfterMove.some((item) => item.id === out.body.punch.id && i
 const restoreSession = await request("/api/kiosk/session", {
   method: "POST",
   headers: { "Content-Type": "application/json", Origin: "https://localhost" },
-  body: JSON.stringify({ employeeNumber }),
+  body: JSON.stringify({ pin: employeePin }),
 });
 const restoreRequest = await request("/api/kiosk/corrections", {
   method: "POST",
@@ -229,6 +230,6 @@ const csv = await exportResponse.text();
 assert.ok(csv.includes("Draft review record"));
 assert.ok(csv.includes("Correction history"));
 assert.ok(csv.includes("Official employee number"));
-assert.ok(csv.includes("1001"));
+assert.ok(csv.includes(employeeNumber));
 
-console.log("API smoke test passed: employee ID entry, strict alternating clock state, throttling, immutable corrections (including period moves), and evidence output reconciled.");
+console.log("API smoke test passed: employee PIN entry, strict alternating clock state, throttling, immutable corrections (including period moves), and evidence output reconciled.");
