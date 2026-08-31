@@ -21,7 +21,7 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_NAME
-        value: Steward Owner
+        value: TimeClock Manager
       - key: COMPANY_NAME
         value: My Company
       - key: KIOSK_ALLOWED_ORIGINS

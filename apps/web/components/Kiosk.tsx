@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EmployeeIdKeypad } from "./ClockCodeKeypad";
+import { EmployeePinKeypad } from "./ClockCodeKeypad";
 
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
 
 interface SessionData {
-  employee: { id: string; employeeNumber: string; firstName: string; lastName: string };
+  employee: { id: string; firstName: string; lastName: string; manager: boolean };
   sessionToken: string;
   companyName: string;
   timeZone: string;
@@ -110,14 +110,14 @@ export function Kiosk() {
       const data = (await readJson(await fetch("/api/kiosk/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeNumber: employeeId }),
+        body: JSON.stringify({ pin: employeeId }),
       }))) as SessionData;
       setSession(data);
       setSessionToken(data.sessionToken);
       setEmployeeId("");
     } catch (error) {
       setEmployeeId("");
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "That employee ID could not be checked." });
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "That PIN could not be checked." });
     } finally {
       setBusy(false);
     }
@@ -139,10 +139,10 @@ export function Kiosk() {
         body: JSON.stringify({ type, idempotencyKey: crypto.randomUUID(), deviceLabel: navigator.userAgent.slice(0, 80) }),
       }));
       completed = true;
-      schedulePrivateReturn(`${punchLabels[type]} recorded at ${new Date(data.punch.occurredAt).toLocaleTimeString()}. Returning to the employee ID screen…`);
+      schedulePrivateReturn(`${punchLabels[type]} recorded at ${new Date(data.punch.occurredAt).toLocaleTimeString()}. Returning to the PIN screen…`);
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
-        returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
+        returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your PIN again." });
       } else {
         setMessage({ kind: "error", text: error instanceof Error ? error.message : "Punch failed. Nothing was recorded." });
       }
@@ -169,10 +169,10 @@ export function Kiosk() {
         }),
       }));
       completed = true;
-      schedulePrivateReturn("Correction request recorded for manager review. The original remains preserved. Returning to the employee ID screen…");
+      schedulePrivateReturn("Correction request recorded for manager review. The original remains preserved. Returning to the PIN screen…");
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
-        returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
+        returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your PIN again." });
       } else {
         setMessage({ kind: "error", text: error instanceof Error ? error.message : "Correction request failed." });
       }
@@ -199,15 +199,15 @@ export function Kiosk() {
         <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
           <div className="panel-heading keypad-heading">
             <p className="eyebrow">Employee timeclock</p>
-            <h2>Enter your employee ID</h2>
-            <p>Use your four-digit ID, starting with 1. You will confirm the correct action on the next screen.</p>
+            <h2>Enter your PIN</h2>
+            <p>Use your private four-digit PIN. You will confirm the correct action on the next screen.</p>
           </div>
-          <EmployeeIdKeypad value={employeeId} onChange={setEmployeeId} onSubmit={() => void signIn()} busy={busy} />
+          <EmployeePinKeypad value={employeeId} onChange={setEmployeeId} onSubmit={() => void signIn()} busy={busy} />
         </form>
       ) : (
         <div className="kiosk-grid">
           <section className="panel action-panel">
-            <div className="welcome-row"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number-label">Employee ID {session.employee.employeeNumber}</p></div><button className="button quiet" type="button" onClick={() => returnToCode()}>Not me</button></div>
+            <div className="welcome-row"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2>{session.employee.manager && <p className="employee-number-label">Manager</p>}</div><button className="button quiet" type="button" onClick={() => returnToCode()}>Done</button></div>
             <div className={`punch-actions action-count-${session.allowedPunchTypes.length}`}>
               {session.allowedPunchTypes.map((type) => (
                 <button className={`punch-button ${type.toLowerCase()}`} key={type} type="button" disabled={busy} onClick={() => punch(type)}>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { EmployeeTimesheet } from "@/components/EmployeeTimesheet";
 
-export const metadata: Metadata = { title: { absolute: "Steward — Worker time sheet" } };
+export const metadata: Metadata = { title: { absolute: "TimeClock — Worker time sheet" } };
 
 export default async function EmployeePage({
   params,

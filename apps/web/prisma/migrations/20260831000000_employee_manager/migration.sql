@@ -1,0 +1,1 @@
+ALTER TABLE "Employee" ADD COLUMN "manager" BOOLEAN NOT NULL DEFAULT false;

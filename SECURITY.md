@@ -1,6 +1,6 @@
 # Security policy
 
-TimeClock and its Steward owner portal store payroll-related records and personally identifying information. Treat every production installation as a sensitive system.
+TimeClock's worker and manager modes store payroll-related records and personally identifying information. Treat every production installation as a sensitive system.
 
 ## Supported version
 
@@ -23,12 +23,14 @@ Include the affected commit/version, reproducible steps using synthetic data, im
 - Review audit events and pending corrections before payroll approval.
 - Configure retention and employee-record access based on controlling law and company policy.
 - Do not enable public self-registration.
+- Keep `KIOSK_DEVICE_KEY` and APK build values out of source control. Rotate the key and rebuild managed APKs if an installed package is distributed outside the intended devices.
 
 ## Known boundaries
 
 - Employee IDs are intentionally accepted as low-friction identification on a supervised shared kiosk. They are predictable and are not strong authentication. The short-lived memory-only session and limited worker view reduce exposure, but this is not remote employee self-service or a substitute for private authentication where that is required.
 - The in-process API does not replace a reverse proxy/WAF, centralized rate limiting, monitoring, or intrusion detection.
 - Android debug APKs from CI are for testing. Managed production deployment should use an organization-controlled signing key and device-management policy.
+- The shared kiosk device key filters public gateway traffic but is bundled into each APK and is not a substitute for employee PIN authentication, managed-device controls, or server-side session authorization.
 - This project does not store payroll bank information, Social Security numbers, or payroll credentials and should not be extended to do so without a separate security design review.
 
 The implemented privacy model and production-control gaps are documented in [docs/SECURITY-AND-PRIVACY.md](docs/SECURITY-AND-PRIVACY.md).

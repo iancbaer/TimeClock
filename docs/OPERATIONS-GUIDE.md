@@ -1,31 +1,59 @@
 # Manager and kiosk operating guide
 
-## Steward manager guide
+## TimeClock manager guide
 
 ### Add a worker
 
-1. Sign in to Steward at `/admin`.
-2. Assign the next unique official employee number. Steward suggests the first available number beginning with `1001`.
-3. Enter the worker’s name and save.
-4. Give the worker their employee ID. IDs must be unique; the initial ten are `1001` through `1010`.
+1. Sign in to TimeClock's manager view at `/admin`.
+2. Enter the worker’s name and choose whether they have manager permission.
+3. Save the employee and record the random four-digit PIN shown once.
+4. Give that private PIN only to the employee. Internal employee numbers are assigned automatically and are not kiosk credentials.
 
 ### Review corrections and payroll
 
 Review each pending correction against schedules and available records. Approval appends a revision or creates a correction-sourced missing punch; rejection leaves original punches unchanged. Always enter a specific resolution note. Before payroll, follow the reconciliation procedure in [REPORTS-AND-EVIDENCE.md](REPORTS-AND-EVIDENCE.md).
 
+### Review punches on the tablet
+
+1. Ian Baer enters his ordinary employee PIN, `9999`.
+2. Ian may clock in or out normally, then tap **See hours for every employee**.
+3. Review the current aligned two-week period for every active employee. Each employee card shows the TRESA database punches, exact time, paid-time credit, payable time, overtime, and record flags.
+4. Use **Previous two weeks** or **Next two weeks** when another period is needed.
+5. Tap **Back to my clock** when finished. The review is read-only and closes automatically after two minutes without activity.
+
+Manager permission is part of Ian's employee record; it is not a separate service or shared review-only login. Tablet review cannot edit punches, approve corrections, or change settings. Use TimeClock's authenticated manager view for those administrative actions.
+
 ### Configure an Android kiosk
 
-On first launch, enter the central HTTPS TimeClock service address. After setup, configuration is absent from the employee flow. A manager can press and hold the TimeClock mark for four seconds to reopen connection settings. This gesture is not an authentication control; physical kiosk access should be managed separately.
+Normal managed builds include the HTTPS TimeClock address and device authorization, so another tablet only needs the same APK installed. A build without an embedded address asks for the HTTPS address on first launch. After setup, configuration is absent from the employee flow. A manager can press and hold the TimeClock mark for four seconds to reopen connection settings. This gesture is not an authentication control; physical kiosk access should be managed separately.
+
+### Connect remote kiosks to TRESA
+
+Remote tablets do not need Tailscale. Run the public gateway on TRESA with a random `KIOSK_DEVICE_KEY` of at least 32 characters:
+
+```bash
+node scripts/timeclock-public-gateway.mjs
+```
+
+The gateway listens on `127.0.0.1:3110`, forwards only `/api/health` and `/api/kiosk/*` to the local TimeClock service on port 3100, requires the matching device key for kiosk requests, and returns 404 for the administration site. Publish port 3110 through a stable HTTPS tunnel such as Tailscale Funnel:
+
+```bash
+tailscale funnel --https=10000 --bg http://127.0.0.1:3110
+```
+
+Set `VITE_TIMECLOCK_SERVER_URL` to that HTTPS address and `VITE_TIMECLOCK_DEVICE_KEY` to the matching gateway key when building the APK. Keep the key out of source control. The key identifies an installed app build; employee PINs and short-lived sessions still authorize employee actions.
 
 ## Worker kiosk guide
 
-1. Tap the large numeric keypad to enter your four-digit employee ID. Android’s keyboard does not open.
+1. Tap the large numeric keypad to enter your private four-digit PIN. Android’s keyboard does not open.
 2. Tap **Continue**.
 3. Confirm your name and the single action shown: **Clock in** when out, or **Clock out** when in.
-4. After a punch, read the confirmation. TimeClock returns to the employee ID screen automatically.
+4. After a punch, read the confirmation. TimeClock returns to the PIN screen automatically.
 5. For a missed or wrong punch, choose **Correct my time record**, explain the requested change, and submit. The manager reviews it; the original remains preserved.
 
 Use **Done** when leaving without an action. The worker screen also closes after one minute without activity. Paid rest breaks stay clocked in. For an unpaid meal, clock out when it begins and clock back in when work resumes. TimeClock makes no automatic deductions.
+
+If TRESA or Wi-Fi is unavailable, any employee whose profile has synchronized on this tablet can still sign in and punch. TimeClock labels the punch as saved on the tablet, preserves its original device timestamp, and retries delivery to TRESA every 15 seconds and whenever Android reports that the connection has returned. Do not clear app storage while unsent punches are shown.
 
 ## Backup and restore
 
@@ -54,26 +82,26 @@ Implemented behavior: no automatic time-record deletion, correction deletion, or
 
 Current implementation supports Docker Compose, one Next.js service, and PostgreSQL. It binds to localhost by default. For production:
 
-1. Generate high-entropy values for `AUTH_SECRET`, database, and Steward credentials.
+1. Generate high-entropy values for `AUTH_SECRET`, database, and TimeClock administrator credentials.
 2. Put the app behind an HTTPS reverse proxy and expose only that proxy.
-3. Keep PostgreSQL private; encrypt disks and backups.
-4. Set only approved Capacitor origins in `KIOSK_ALLOWED_ORIGINS`.
-5. Use a managed device/kiosk mode for Android and restrict physical settings access.
-6. Add centralized rate limiting if more than one app instance is used.
-7. Add monitoring, alerting, patching, backup jobs, and restore exercises.
-8. Use an organization-controlled Android release signing key; CI’s debug APK is for testing.
+4. Keep PostgreSQL private; encrypt disks and backups.
+5. Set only approved Capacitor origins in `KIOSK_ALLOWED_ORIGINS`.
+6. Use a managed device/kiosk mode for Android and restrict physical settings access.
+7. Add centralized rate limiting if more than one app instance is used.
+8. Add monitoring, alerting, patching, backup jobs, and restore exercises.
+9. Use an organization-controlled Android release signing key; CI’s debug APK is for testing.
 
 These production controls are recommended; reverse proxying, off-host backup automation, centralized monitoring, mobile-device management, and multi-instance shared throttling are not bundled by this repository.
 
 ### Recommended managed host: Render
 
-`render.yaml` defines the current small-employer target: one paid Docker web instance and one paid private PostgreSQL instance in Oregon. The Blueprint generates the signing secret, prompts for the initial Steward email/password, runs migrations and idempotent initialization before deploy, and uses `/api/health` for readiness.
+`render.yaml` defines the current small-employer target: one paid Docker web instance and one paid private PostgreSQL instance in Oregon. The Blueprint generates the signing secret, prompts for the initial TimeClock administrator email/password, runs migrations and idempotent initialization before deploy, and uses `/api/health` for readiness.
 
 1. Fork or connect the public GitHub repository to an organization-controlled account.
 2. In Render, create a Blueprint from `render.yaml`.
-3. Enter a private Steward email and a strong unique password when prompted. Do not enable `SEED_SYNTHETIC_EMPLOYEE` in production.
+3. Enter a private TimeClock administrator email and a strong unique password when prompted. Do not enable `SEED_SYNTHETIC_EMPLOYEE` in production.
 4. Confirm the Blueprint selects one web instance and the paid PostgreSQL plan; do not downgrade the production database to free.
-5. After first deploy, sign in to Steward, set the real company label and pay-period settings, and create workers with IDs `1001` onward.
+5. After first deploy, sign in to TimeClock's manager view, set the real company label and pay-period settings, and create workers with IDs `1001` onward.
 6. Run `SMOKE_BASE_URL=https://your-service.example SMOKE_EMPLOYEE_NUMBER=1999 npm run smoke` only with a designated synthetic test worker and test manager—not a real worker ID.
 7. Enable platform notifications, verify managed recovery, schedule a separate encrypted logical export, and complete an isolated restore exercise.
 8. Configure the Android/desktop clients with the final HTTPS service URL and restrict the device to kiosk use.

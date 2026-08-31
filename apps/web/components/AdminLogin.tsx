@@ -37,8 +37,8 @@ export function AdminLogin() {
       <form className="panel admin-login" onSubmit={submit}>
         <Link className="back-link" href="/">← Return to TimeClock</Link>
         <div className="panel-heading">
-          <p className="eyebrow">Owner portal</p>
-          <h1>Steward</h1>
+          <p className="eyebrow">Manager sign-in</p>
+          <h1>TimeClock</h1>
           <p>Review worker records, resolve corrections, and prepare accurate pay-period sheets.</p>
         </div>
         {error && <div className="notice error">{error}</div>}

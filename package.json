@@ -16,8 +16,6 @@
     "db:generate": "npm run db:generate --workspace @timeclock/web",
     "db:migrate": "npm run db:migrate --workspace @timeclock/web",
     "db:seed": "npm run db:seed --workspace @timeclock/web",
-    "steward:dist": "npm run dist --workspace @steward/desktop",
-    "timeclock:dist": "npm run dist --workspace @timeclock/desktop",
     "android:sync": "npm run sync --workspace @timeclock/android",
     "demo:provision": "node scripts/provision-synthetic-employees.mjs",
     "smoke": "node scripts/api-smoke.mjs"

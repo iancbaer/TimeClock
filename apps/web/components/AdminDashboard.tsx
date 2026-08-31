@@ -10,6 +10,8 @@ interface Employee {
   firstName: string;
   lastName: string;
   active: boolean;
+  manager: boolean;
+  hasPin: boolean;
 }
 
 interface Correction {
@@ -51,7 +53,8 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const [newEmployee, setNewEmployee] = useState({ employeeNumber: "", firstName: "", lastName: "" });
+  const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", manager: false });
+  const [newPin, setNewPin] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -63,10 +66,6 @@ export function AdminDashboard() {
         fetch("/api/admin/settings", { cache: "no-store" }).then(json),
       ]);
       setEmployees(employeeData.employees);
-      setNewEmployee((current) => current.employeeNumber ? current : {
-        ...current,
-        employeeNumber: employeeData.suggestedEmployeeNumber ?? "",
-      });
       setCorrections(correctionData.corrections);
       setSettings(settingsData.settings);
     } catch (error) {
@@ -74,7 +73,7 @@ export function AdminDashboard() {
         router.replace("/admin/login");
         return;
       }
-      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load Steward." });
+      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load TimeClock Manager." });
     } finally {
       setLoading(false);
     }
@@ -89,13 +88,14 @@ export function AdminDashboard() {
     setBusy(true);
     setNotice(null);
     try {
-      await json(await fetch("/api/admin/employees", {
+      const created = await json(await fetch("/api/admin/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEmployee),
       }));
-      setNewEmployee({ employeeNumber: "", firstName: "", lastName: "" });
-      setNotice({ kind: "success", text: "Employee created." });
+      setNewEmployee({ firstName: "", lastName: "", manager: false });
+      setNewPin(created.pin);
+      setNotice({ kind: "success", text: `Employee created. Their private PIN is ${created.pin}. Save it now; TimeClock will not show it again.` });
       await load();
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not create employee." });
@@ -151,21 +151,21 @@ export function AdminDashboard() {
     router.replace("/admin/login");
   }
 
-  if (loading && !settings) return <main className="admin-shell"><div className="loading-state">Loading Steward…</div></main>;
+  if (loading && !settings) return <main className="admin-shell"><div className="loading-state">Loading TimeClock Manager…</div></main>;
 
   return (
     <main className="admin-shell">
       <header className="admin-header">
         <div>
-          <p className="eyebrow">Owner portal · {settings?.companyName ?? "Your organization"}</p>
-          <h1>Steward</h1>
+          <p className="eyebrow">Manager view · {settings?.companyName ?? "Your organization"}</p>
+          <h1>TimeClock</h1>
         </div>
         <nav><Link href="/">TimeClock worker app</Link><button className="button quiet" onClick={signOut}>Sign out</button></nav>
       </header>
 
       {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
 
-      <section className="admin-summary" aria-label="Steward summary">
+      <section className="admin-summary" aria-label="TimeClock manager summary">
         <article><strong>{employees.filter((employee) => employee.active).length}</strong><span>Active employees</span></article>
         <article><strong>{corrections.length}</strong><span>Pending corrections</span></article>
         <article><strong>{settings?.roundingMode === "EMPLOYEE_FAVOR_DAILY_CEILING" ? "On" : "Off"}</strong><span>Worker-favorable pay credit</span></article>
@@ -182,19 +182,20 @@ export function AdminDashboard() {
             {employees.map((employee) => (
               <a className={`employee-row ${employee.active ? "" : "inactive"}`} href={`/admin/employee/${employee.id}`} key={employee.id}>
                 <span className="avatar">{employee.firstName[0]}{employee.lastName[0]}</span>
-                <span><strong>{employee.firstName} {employee.lastName}</strong><small>Employee ID {employee.employeeNumber}{employee.active ? "" : " · Inactive"}</small></span>
+                <span><strong>{employee.firstName} {employee.lastName}</strong><small>{employee.manager ? "Admin Account · " : ""}{employee.hasPin ? "PIN assigned" : "Legacy sign-in"}{employee.active ? "" : " · Inactive"}</small></span>
                 <span aria-hidden="true">→</span>
               </a>
             ))}
           </div>
           <form className="inline-form" onSubmit={addEmployee}>
             <h3>Add employee</h3>
-            <p className="form-help">Workers enter this four-digit ID on the TimeClock keypad.</p>
+            <p className="form-help">TimeClock creates a random private four-digit PIN and shows it once.</p>
+            {newPin && <div className="notice success">New employee PIN: <strong>{newPin}</strong></div>}
             <div className="form-grid">
-              <label>Official employee number<input inputMode="numeric" pattern="1[0-9]{3}" minLength={4} maxLength={4} value={newEmployee.employeeNumber} onChange={(event) => setNewEmployee({ ...newEmployee, employeeNumber: event.target.value.replace(/\D/g, "").slice(0, 4) })} required /></label>
               <label>First name<input value={newEmployee.firstName} onChange={(event) => setNewEmployee({ ...newEmployee, firstName: event.target.value })} required /></label>
               <label>Last name<input value={newEmployee.lastName} onChange={(event) => setNewEmployee({ ...newEmployee, lastName: event.target.value })} required /></label>
             </div>
+            <label className="toggle-row"><input type="checkbox" checked={newEmployee.manager} onChange={(event) => setNewEmployee({ ...newEmployee, manager: event.target.checked })} /><span><strong>Admin Account</strong><small>Can clock normally and use See hours for every employee.</small></span></label>
             <button className="button secondary" disabled={busy}>Create employee</button>
           </form>
         </section>

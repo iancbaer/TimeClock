@@ -77,3 +77,28 @@ export async function buildEmployeeTimesheet(employeeId: string, requestedPeriod
     },
   };
 }
+
+export async function buildManagerReview(requestedPeriodStart?: string) {
+  const settings = await getSettings();
+  const anchor = DateTime.fromJSDate(settings.payPeriodAnchor, { zone: "utc" })
+    .setZone(settings.timeZone)
+    .toISODate()!;
+  const target = requestedPeriodStart ?? DateTime.now().setZone(settings.timeZone).toISODate()!;
+  const periodStart = payPeriodContaining(anchor, target, settings.timeZone);
+  const employees = await prisma.employee.findMany({
+    where: { active: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { employeeNumber: "asc" }],
+    select: { id: true },
+  });
+  const sheets = await Promise.all(employees.map((employee) => buildEmployeeTimesheet(employee.id, periodStart)));
+
+  return {
+    companyName: settings.companyName,
+    timeZone: settings.timeZone,
+    periodStart,
+    periodEnd: DateTime.fromISO(periodStart, { zone: settings.timeZone }).plus({ days: 13 }).toISODate()!,
+    generatedAt: new Date().toISOString(),
+    recordSource: "central-database",
+    employees: sheets.map((sheet) => ({ employee: sheet.employee, summary: sheet.summary })),
+  };
+}

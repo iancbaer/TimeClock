@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";
 import { employeeUpdateSchema } from "@/lib/schemas";
+import { pinCredential } from "@/lib/employee-pin";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -11,11 +12,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const input = employeeUpdateSchema.parse(await request.json());
     const existing = await prisma.employee.findUnique({ where: { id }, select: { id: true } });
     if (!existing) throw new HttpError(404, "Employee not found.");
+    const { pin, ...changes } = input;
+    const credential = pin ? await pinCredential(pin) : {};
     const employee = await prisma.$transaction(async (tx) => {
       const updated = await tx.employee.update({
         where: { id },
-        data: input,
-        select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true },
+        data: { ...changes, ...credential },
+        select: { id: true, employeeNumber: true, firstName: true, lastName: true, active: true, manager: true },
       });
       await tx.auditEvent.create({
         data: {
@@ -24,7 +27,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           actorId: admin.id,
           entityType: "Employee",
           entityId: id,
-          metadata: { changedFields: Object.keys(input) },
+          metadata: { changedFields: [...Object.keys(changes), ...(pin ? ["clockCodeHash"] : [])] },
         },
       });
       return updated;
@@ -32,7 +35,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ employee });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return errorResponse(new HttpError(409, "That employee number is already assigned."));
+      return errorResponse(new HttpError(409, "That employee number or PIN is already assigned."));
     }
     return errorResponse(error);
   }

@@ -26,7 +26,7 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-      ADMIN_NAME: ${ADMIN_NAME:-Steward Owner}
+      ADMIN_NAME: ${ADMIN_NAME:-TimeClock Manager}
       COMPANY_NAME: ${COMPANY_NAME:-My Company}
       SEED_SYNTHETIC_EMPLOYEE: ${SEED_SYNTHETIC_EMPLOYEE:-false}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}

@@ -2,7 +2,7 @@
 
 ## Pay-period evidence packet
 
-Steward’s employee report is a single printable 14-day packet. It includes:
+TimeClock's manager report is a single printable 14-day packet. It includes:
 
 - worker name, official employee number, internal record identity, and pay-period boundaries;
 - exact work, paid time credit, regular payable time, overtime, and total payable time;

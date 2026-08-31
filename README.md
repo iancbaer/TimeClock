@@ -1,29 +1,29 @@
 # TimeClock
 
-TimeClock is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked.
-
-Steward is the separate owner portal in this repository. It manages workers, reviews corrections, prepares two-week evidence packets, exports CSV, and maintains settings. Steward desktop packages are available for Windows and Ubuntu; they never change the worker-facing TimeClock identity.
+TimeClock is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked. Manager review and administration are modes of the same TimeClock application and use the same service and database.
 
 ## Worker experience
 
-- One four-digit employee ID, beginning with `1001`, entered through a large 3×4 keypad
+- One private four-digit employee PIN entered through a large 3×4 keypad
 - No text field or Android software keyboard during ordinary clocking
 - Name confirmation followed by exactly one valid action: **Clock in** or **Clock out**
-- Clear punch confirmation followed by automatic return to the employee ID screen
+- Clear punch confirmation followed by automatic return to the PIN screen
 - One-minute authenticated idle timeout and manual **Done** action
 - Recent time and worker-submitted correction requests inside the brief worker session
-- No visible Steward link or everyday server controls on the worker screen
+- No visible administrative link or everyday server controls on the worker screen
+- Ian Baer's ordinary employee account uses PIN `9999` and has manager permission; after signing in he can clock normally or open read-only biweekly hours for every employee
+- Offline punches are saved durably on the tablet with their device time and automatically sent to the TimeClock database on TRESA when connectivity returns
 
-The employee ID is a convenient identifier, not a strong authentication secret. This is an intentional tradeoff for a supervised ten-worker kiosk. See [Security and privacy](docs/SECURITY-AND-PRIVACY.md).
+Employee PINs are private kiosk credentials, stored by the service as keyed lookups and bcrypt verifiers rather than plaintext. Full TimeClock administration still requires the administrator account. See [Security and privacy](docs/SECURITY-AND-PRIVACY.md).
 
 ## Records and reports
 
 - Immutable original punches and append-only approved revisions
-- Server timestamps, valid-state enforcement, idempotency, and per-worker database locking
+- Server timestamps for connected punches; original tablet timestamps plus later database receipt times for offline punches; valid-state enforcement, idempotency, and per-worker database locking
 - Individual 14-day packets split into two independent seven-day workweeks
 - Exact time, paid time credit, regular payable time, overtime, flags, and correction history
 - Self-explanatory CSV and print/PDF evidence outputs with blank attestation lines
-- PostgreSQL, versioned migrations, Docker deployment, Android APK, TimeClock Ubuntu package, and Steward Windows/Ubuntu packages
+- PostgreSQL, versioned migrations, Docker deployment, Android APK, and TimeClock desktop package
 
 The printable packet is a draft review record. Printing does not approve, sign, lock, or freeze a period.
 
@@ -60,10 +60,10 @@ TimeClock’s default is different and more favorable: actual punches remain int
 ## Architecture
 
 ```text
-TimeClock Android ─┐
-TimeClock Ubuntu ──┼── HTTPS ── Next.js API ── PostgreSQL
-TimeClock browser ─┤                 │
-Steward portal ─┘          immutable records
+TimeClock Android (durable offline queue) ── ordinary HTTPS ── filtered app gateway on TRESA
+                                                                    │
+                                                                    ▼
+                                                    TimeClock service + PostgreSQL on TRESA
 ```
 
 ## Docker quick start
@@ -75,14 +75,14 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
-Use the generated value for `AUTH_SECRET`; set unique database and Steward credentials; and remove or replace all synthetic seed values before production.
+Use the generated value for `AUTH_SECRET`; set unique database and TimeClock administrator credentials; and remove or replace all synthetic seed values before production.
 
 ```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-Open TimeClock at `http://127.0.0.1:3000`. Steward remains a separate route at `http://127.0.0.1:3000/admin`.
+Open TimeClock at `http://127.0.0.1:3000`. The authenticated manager view is part of the same application at `http://127.0.0.1:3000/admin`.
 
 ## Development and verification
 
@@ -100,13 +100,15 @@ npm test
 npm run build
 ```
 
-With a synthetic employee on a running server, `npm run smoke` verifies employee-ID entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
+With a synthetic employee on a running server, `npm run smoke` verifies PIN entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
 
 ## Client builds
 
 ### TimeClock Android
 
 ```bash
+export VITE_TIMECLOCK_SERVER_URL="https://timeclock.example.com"
+export VITE_TIMECLOCK_DEVICE_KEY="$(openssl rand -hex 32)"
 npm run build --workspace @timeclock/kiosk
 cd apps/android
 npx cap add android
@@ -115,21 +117,7 @@ cd android
 ./gradlew assembleDebug
 ```
 
-The APK bundles the worker interface. Only the configured service address is stored. CI’s debug APK is for testing; production requires an organization-controlled signing key and managed-device policy.
-
-### TimeClock Ubuntu
-
-```bash
-npm run dist --workspace @timeclock/desktop
-```
-
-### Steward Windows and Ubuntu
-
-```bash
-npm run dist --workspace @steward/desktop
-```
-
-The `Build TimeClock and Steward apps` GitHub workflow produces Android, Windows, and Ubuntu artifacts.
+Use the same device-key value as `KIOSK_DEVICE_KEY` on the gateway host. The APK bundles the worker and manager kiosk interface, its HTTPS service address, and its device authorization. It stores previously synchronized employee sign-in profiles and unsent offline punches on the device. CI’s debug APK is for testing; production requires an organization-controlled signing key and managed-device policy.
 
 ## Scope
 

@@ -10,7 +10,6 @@ coverage/
 .env.*.local
 apps/android/android/
 apps/android/ios/
-apps/desktop/release/
 apps/timeclock-desktop/release/
 apps/web/prisma/dev.db*
 .DS_Store

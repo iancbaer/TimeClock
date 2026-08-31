@@ -5,8 +5,10 @@ export const employeeNumberSchema = z.string().trim().regex(/^1\d{3}$/).refine(
   "Employee number must be between 1001 and 1999.",
 );
 
+export const employeePinSchema = z.string().trim().regex(/^\d{4}$/, "PIN must contain exactly four digits.");
+
 export const employeeIdSessionSchema = z.object({
-  employeeNumber: employeeNumberSchema,
+  pin: employeePinSchema,
 });
 
 export const punchSchema = z.object({
@@ -24,9 +26,14 @@ export const correctionSchema = z.object({
 });
 
 export const employeeCreateSchema = z.object({
-  employeeNumber: employeeNumberSchema,
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
+  manager: z.boolean().optional().default(false),
+  pin: employeePinSchema.optional(),
+});
+
+export const offlinePunchSchema = punchSchema.extend({
+  occurredAt: z.string().datetime(),
 });
 
 export const employeeUpdateSchema = z.object({
@@ -34,4 +41,6 @@ export const employeeUpdateSchema = z.object({
   firstName: z.string().trim().min(1).max(80).optional(),
   lastName: z.string().trim().min(1).max(80).optional(),
   active: z.boolean().optional(),
+  manager: z.boolean().optional(),
+  pin: employeePinSchema.optional(),
 });

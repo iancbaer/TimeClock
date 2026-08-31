@@ -25,9 +25,9 @@ const login = await jsonRequest("/api/admin/login", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email: adminEmail, password: adminPassword }),
 });
-if (!login.response.ok) throw new Error(`Steward sign-in failed with status ${login.response.status}.`);
+if (!login.response.ok) throw new Error(`TimeClock manager sign-in failed with status ${login.response.status}.`);
 const cookie = login.response.headers.get("set-cookie")?.split(";")[0];
-if (!cookie) throw new Error("Steward sign-in did not return a session cookie.");
+if (!cookie) throw new Error("TimeClock manager sign-in did not return a session cookie.");
 
 const listing = await jsonRequest("/api/admin/employees", { headers: { Cookie: cookie } });
 if (!listing.response.ok) throw new Error(`Employee listing failed with status ${listing.response.status}.`);
@@ -80,7 +80,7 @@ const generatedAt = new Date().toISOString();
 const lines = [
   ["TimeClock local synthetic employee roster"],
   ["Generated at", generatedAt],
-  ["Note", "Synthetic local data. Replace demo names with real employee names in Steward. Do not commit real employee information."],
+  ["Note", "Synthetic local data. Replace demo names with real employee names in TimeClock's manager view. Do not commit real employee information."],
   [],
   ["Employee ID", "Display name", "Action"],
   ...roster.map((item) => [item.employeeNumber, item.displayName, item.created ? "created" : "updated"]),

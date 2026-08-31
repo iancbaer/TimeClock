@@ -3,20 +3,103 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
 interface Session {
-  employee: { employeeNumber: string; firstName: string; lastName: string };
+  employee: { id: string; firstName: string; lastName: string; manager: boolean };
   sessionToken: string;
+  offlineToken: string;
+  offline?: boolean;
   companyName: string;
   timeZone: string;
   allowedPunchTypes: PunchType[];
   recentPunches: Array<{ id: string; type: RecordPunchType; occurredAt: string; revised?: boolean }>;
 }
 
+interface QueuedPunch {
+  employeeId: string;
+  offlineToken: string;
+  idempotencyKey: string;
+  type: PunchType;
+  occurredAt: string;
+}
+
+interface OfflineRoster {
+  generatedAt: string;
+  profiles: Array<{ profileKey: string; session: Session }>;
+}
+
+const OFFLINE_PROFILES_KEY = "timeclock-offline-profiles-v1";
+const OFFLINE_QUEUE_KEY = "timeclock-offline-punches-v1";
+const DEFAULT_SERVER_URL = import.meta.env.VITE_TIMECLOCK_SERVER_URL ?? "";
+const DEVICE_KEY = import.meta.env.VITE_TIMECLOCK_DEVICE_KEY ?? "";
+
+function kioskHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { "X-TimeClock-Device-Key": DEVICE_KEY, ...extra };
+}
+
+function storedJson<T>(key: string, fallback: T): T {
+  try { return JSON.parse(localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
+}
+
+async function pinDigest(pin: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`timeclock-local-pin:${pin}`));
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+interface ManagerReview {
+  companyName: string;
+  timeZone: string;
+  periodStart: string;
+  periodEnd: string;
+  generatedAt: string;
+  recordSource: "central-database";
+  employees: Array<{
+    employee: { id: string; employeeNumber: string; firstName: string; lastName: string; active: boolean };
+    summary: {
+      actualMilliseconds: number;
+      creditMilliseconds: number;
+      payableMilliseconds: number;
+      overtimeMilliseconds: number;
+      issues: Array<{ code: string; message: string; localDate: string }>;
+      weeks: Array<{
+        weekNumber: number;
+        startDate: string;
+        endDate: string;
+        payableMilliseconds: number;
+        overtimeMilliseconds: number;
+        days: Array<{
+          date: string;
+          actualMilliseconds: number;
+          creditMilliseconds: number;
+          payableMilliseconds: number;
+          issues: Array<{ code: string; message: string }>;
+          punches: Array<{ id: string; type: RecordPunchType; localTime: string; occurredAt: string; revised: boolean }>;
+        }>;
+      }>;
+    };
+  }>;
+}
+
 const labels: Record<RecordPunchType, string> = { WORK_IN: "Clock in", MEAL_START: "Start meal", MEAL_END: "End meal", WORK_OUT: "Clock out" };
+
+function formatDuration(milliseconds: number): string {
+  const minutes = Math.round(milliseconds / 60_000);
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function shiftDate(value: string, days: number): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}
+
+function dayLabel(value: string): string {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })
+    .format(new Date(`${value}T12:00:00Z`));
+}
 
 function normalizedServer(value: string): string | null {
   try {
     const url = new URL(value.trim());
-    if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "10.0.2.2"].includes(url.hostname))) return null;
+    const privateHttp = url.protocol === "http:" && (["localhost", "127.0.0.1", "10.0.2.2"].includes(url.hostname.toLowerCase()) || url.hostname.startsWith("100.") || url.hostname.startsWith("192.168.") || url.hostname.startsWith("10."));
+    if (url.protocol !== "https:" && !privateHttp) return null;
     return url.origin + url.pathname.replace(/\/$/, "");
   } catch { return null; }
 }
@@ -43,24 +126,27 @@ function Keypad({ value, onChange, submit, busy }: { value: string; onChange: (v
     return () => window.removeEventListener("keydown", key);
   });
   return <div className="clock-code-entry">
-    <output className="clock-code-display" aria-label={`${value.length} employee ID digits entered`} aria-live="polite">{value || <span>Enter your 4-digit ID</span>}</output>
-    <div className="numeric-keypad" aria-label="Numeric employee ID keypad">
+    <output className="clock-code-display" aria-label={`${value.length} PIN digits entered`} aria-live="polite">{value || <span>Enter your 4-digit PIN</span>}</output>
+    <div className="numeric-keypad" aria-label="Numeric employee PIN keypad">
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((number) => <button className="keypad-key" type="button" onClick={() => digit(number)} disabled={busy} key={number}>{number}</button>)}
       <button className="keypad-key utility" type="button" onClick={() => onChange("")} disabled={busy || !value}>Clear</button>
       <button className="keypad-key" type="button" onClick={() => digit("0")} disabled={busy}>0</button>
       <button className="keypad-key continue" disabled={busy || value.length !== 4}>{busy ? "Wait…" : "Continue"}</button>
     </div>
-    <p className="code-privacy-note">Your employee ID is cleared when you finish or after a recorded punch.</p>
+    <p className="code-privacy-note">Your PIN is cleared immediately after sign-in.</p>
   </div>;
 }
 
 export function App() {
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("timeclock-server") ?? "");
-  const [setupOpen, setSetupOpen] = useState(() => !localStorage.getItem("timeclock-server"));
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("timeclock-server") ?? DEFAULT_SERVER_URL);
+  const [setupOpen, setSetupOpen] = useState(() => !serverUrl);
   const [serverDraft, setServerDraft] = useState(serverUrl);
   const [employeeId, setEmployeeId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [sessionToken, setSessionToken] = useState("");
+  const [managerReview, setManagerReview] = useState<ManagerReview | null>(null);
+  const [offlineProfileKey, setOfflineProfileKey] = useState("");
+  const [queuedCount, setQueuedCount] = useState(() => storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []).length);
   const [now, setNow] = useState(new Date());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -79,20 +165,84 @@ export function App() {
     if (configurationTimer.current !== null) window.clearTimeout(configurationTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (!session || !offlineProfileKey) return;
+    const profiles = storedJson<Record<string, Session>>(OFFLINE_PROFILES_KEY, {});
+    profiles[offlineProfileKey] = { ...session, sessionToken: "", offline: true };
+    localStorage.setItem(OFFLINE_PROFILES_KEY, JSON.stringify(profiles));
+  }, [offlineProfileKey, session]);
+
+  const syncOfflineProfiles = useCallback(async (url = serverUrl) => {
+    if (!url) return;
+    try {
+      const result = await data(await fetch(`${url}/api/kiosk/offline-roster`, { cache: "no-store", headers: kioskHeaders() })) as OfflineRoster;
+      const profiles = Object.fromEntries(result.profiles.map(({ profileKey, session: profile }) => [
+        profileKey,
+        { ...profile, sessionToken: "", offline: true },
+      ]));
+      localStorage.setItem(OFFLINE_PROFILES_KEY, JSON.stringify(profiles));
+    } catch {
+      // Keep the last complete roster when the network is unavailable.
+    }
+  }, [serverUrl]);
+
+  useEffect(() => {
+    void syncOfflineProfiles();
+    const timer = window.setInterval(() => void syncOfflineProfiles(), 5 * 60_000);
+    const online = () => void syncOfflineProfiles();
+    window.addEventListener("online", online);
+    return () => { window.clearInterval(timer); window.removeEventListener("online", online); };
+  }, [syncOfflineProfiles]);
+
+  const syncQueuedPunches = useCallback(async () => {
+    if (!serverUrl) return;
+    const queue = storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []);
+    if (!queue.length) { setQueuedCount(0); return; }
+    const remaining: QueuedPunch[] = [];
+    for (const punch of queue) {
+      try {
+        await data(await fetch(`${serverUrl}/api/kiosk/offline-punch`, {
+          method: "POST",
+          headers: kioskHeaders({ Authorization: `Bearer ${punch.offlineToken}`, "Content-Type": "application/json" }),
+          body: JSON.stringify({ type: punch.type, occurredAt: punch.occurredAt, idempotencyKey: punch.idempotencyKey, deviceLabel: "Android kiosk · saved offline" }),
+        }));
+      } catch { remaining.push(punch); }
+    }
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    setQueuedCount(remaining.length);
+  }, [serverUrl]);
+
+  useEffect(() => {
+    void syncQueuedPunches();
+    const timer = window.setInterval(() => void syncQueuedPunches(), 15_000);
+    const online = () => void syncQueuedPunches();
+    window.addEventListener("online", online);
+    return () => { window.clearInterval(timer); window.removeEventListener("online", online); };
+  }, [syncQueuedPunches]);
+
   const returnToCode = useCallback((nextNotice?: { kind: "error" | "success"; text: string }) => {
-    setSession(null); setSessionToken(""); setEmployeeId(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
+    setSession(null); setSessionToken(""); setManagerReview(null); setOfflineProfileKey(""); setEmployeeId(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || managerReview) return;
     let timer = 0;
     const restart = () => { window.clearTimeout(timer); timer = window.setTimeout(() => returnToCode({ kind: "error", text: "For privacy, this session ended after one minute without activity." }), 60_000); };
     restart();
     window.addEventListener("pointerdown", restart, { passive: true }); window.addEventListener("keydown", restart); window.addEventListener("input", restart);
     return () => { window.clearTimeout(timer); window.removeEventListener("pointerdown", restart); window.removeEventListener("keydown", restart); window.removeEventListener("input", restart); };
-  }, [returnToCode, session]);
+  }, [managerReview, returnToCode, session]);
 
-  const dateTime = useMemo(() => new Intl.DateTimeFormat("en-US", { timeZone: session?.timeZone, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }), [session?.timeZone]);
+  useEffect(() => {
+    if (!managerReview) return;
+    let timer = 0;
+    const restart = () => { window.clearTimeout(timer); timer = window.setTimeout(() => returnToCode({ kind: "error", text: "Manager review closed after two minutes without activity." }), 120_000); };
+    restart();
+    window.addEventListener("pointerdown", restart, { passive: true }); window.addEventListener("keydown", restart); window.addEventListener("scroll", restart, { passive: true });
+    return () => { window.clearTimeout(timer); window.removeEventListener("pointerdown", restart); window.removeEventListener("keydown", restart); window.removeEventListener("scroll", restart); };
+  }, [managerReview, returnToCode]);
+
+  const dateTime = useMemo(() => new Intl.DateTimeFormat("en-US", { timeZone: managerReview?.timeZone ?? session?.timeZone, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }), [managerReview?.timeZone, session?.timeZone]);
 
   async function saveServer(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setNotice(null);
@@ -101,6 +251,7 @@ export function App() {
     try {
       await data(await fetch(`${normalized}/api/health`, { cache: "no-store" }));
       localStorage.setItem("timeclock-server", normalized); setServerUrl(normalized); setSetupOpen(false); returnToCode({ kind: "success", text: "TimeClock is connected and ready." });
+      void syncOfflineProfiles(normalized);
     } catch (error) { setNotice({ kind: "error", text: error instanceof Error ? `Could not connect: ${error.message}` : "Could not connect." }); }
     finally { setBusy(false); }
   }
@@ -108,22 +259,79 @@ export function App() {
   async function signIn() {
     if (busy || employeeId.length !== 4) return;
     setBusy(true); setNotice(null);
+    const profileKey = await pinDigest(employeeId);
     try {
-      const result = await data(await fetch(`${serverUrl}/api/kiosk/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeNumber: employeeId }) })) as Session;
-      setSession(result); setSessionToken(result.sessionToken); setEmployeeId("");
-    } catch (error) { setEmployeeId(""); setNotice({ kind: "error", text: error instanceof Error ? error.message : "That employee ID could not be checked." }); }
+      const result = await data(await fetch(`${serverUrl}/api/kiosk/session`, { method: "POST", headers: kioskHeaders({ "Content-Type": "application/json" }), body: JSON.stringify({ pin: employeeId }) })) as Session;
+      setSession(result); setSessionToken(result.sessionToken); setOfflineProfileKey(profileKey); setEmployeeId("");
+      void syncQueuedPunches();
+    } catch (error) {
+      const cached = storedJson<Record<string, Session>>(OFFLINE_PROFILES_KEY, {})[profileKey];
+      if (!(error as Error & { status?: number }).status) {
+        if (cached) {
+          setSession({ ...cached, offline: true }); setSessionToken(""); setOfflineProfileKey(profileKey); setEmployeeId("");
+          setNotice({ kind: "success", text: "Not connected to internet. You can still clock in or out, and your punch will be saved locally." });
+        } else {
+          setEmployeeId("");
+          setNotice({ kind: "error", text: "Not connected to internet. This employee has not been prepared for offline use on this tablet yet. Reconnect once and try again." });
+        }
+      } else {
+        setEmployeeId(""); setNotice({ kind: "error", text: error instanceof Error ? error.message : "That PIN could not be checked." });
+      }
+    }
     finally { setBusy(false); }
+  }
+
+  async function loadManagerReview(periodStart: string) {
+    setBusy(true); setNotice(null);
+    try {
+      const query = periodStart ? `?periodStart=${encodeURIComponent(periodStart)}` : "";
+      const result = await data(await fetch(`${serverUrl}/api/kiosk/manager/review${query}`, {
+        cache: "no-store",
+        headers: kioskHeaders({ Authorization: `Bearer ${sessionToken}` }),
+      })) as { review: ManagerReview };
+      setManagerReview(result.review);
+    } catch (error) {
+      if ([401, 403].includes((error as Error & { status?: number }).status ?? 0)) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "An Admin Account is required." });
+      else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load manager review." });
+    } finally { setBusy(false); }
   }
 
   function scheduleReturn(text: string) { setNotice({ kind: "success", text }); confirmationTimer.current = window.setTimeout(() => returnToCode({ kind: "success", text }), 1_800); }
 
   async function punch(type: PunchType) {
     setBusy(true); setNotice(null); let completed = false;
+    const occurredAt = new Date().toISOString();
+    const idempotencyKey = crypto.randomUUID();
+    const updateLocalState = (id: string, timestamp: string) => setSession((current) => current ? {
+      ...current,
+      allowedPunchTypes: [type === "WORK_IN" ? "WORK_OUT" : "WORK_IN"],
+      recentPunches: [{ id, type, occurredAt: timestamp }, ...current.recentPunches].slice(0, 12),
+    } : current);
+    const saveOffline = () => {
+      if (!session) return;
+      const queue = storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []);
+      queue.push({ employeeId: session.employee.id, offlineToken: session.offlineToken, idempotencyKey, type, occurredAt });
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); setQueuedCount(queue.length);
+      updateLocalState(idempotencyKey, occurredAt); completed = true;
+      const message = `Not connected to internet. Your ${labels[type].toLowerCase()} at ${new Date(occurredAt).toLocaleTimeString()} has been saved locally and will sync automatically.`;
+      if (session.employee.manager) { setNotice({ kind: "success", text: message }); setBusy(false); }
+      else scheduleReturn(message);
+    };
     try {
-      const result = await data(await fetch(`${serverUrl}/api/kiosk/punch`, { method: "POST", headers: { "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ type, idempotencyKey: crypto.randomUUID(), deviceLabel: "Android kiosk" }) }));
-      completed = true; scheduleReturn(`${labels[type]} recorded at ${new Date(result.punch.occurredAt).toLocaleTimeString()}. Returning to the employee ID screen…`);
+      if (session?.offline) { saveOffline(); return; }
+      const result = await data(await fetch(`${serverUrl}/api/kiosk/punch`, { method: "POST", headers: kioskHeaders({ "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }), body: JSON.stringify({ type, idempotencyKey, deviceLabel: "Android kiosk" }) }));
+      completed = true;
+      const recordedText = `${labels[type]} recorded at ${new Date(result.punch.occurredAt).toLocaleTimeString()}.`;
+      updateLocalState(result.punch.id, result.punch.occurredAt);
+      if (session?.employee.manager) {
+        setNotice({ kind: "success", text: recordedText });
+        setBusy(false);
+      } else {
+        scheduleReturn(`${recordedText} Returning to the PIN screen…`);
+      }
     } catch (error) {
-      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
+      if (!(error as Error & { status?: number }).status && session?.offlineToken) saveOffline();
+      else if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your PIN again." });
       else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Punch failed. Nothing was recorded." });
     } finally { if (!completed) setBusy(false); }
   }
@@ -131,10 +339,10 @@ export function App() {
   async function requestCorrection(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setNotice(null); let completed = false;
     try {
-      await data(await fetch(`${serverUrl}/api/kiosk/corrections`, { method: "POST", headers: { "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ kind, targetPunchId: kind === "WRONG_TIME" ? targetPunchId || null : null, requestedType: kind === "MISSED_PUNCH" ? requestedType : null, requestedOccurredAt: kind !== "OTHER" && requestedAt ? new Date(requestedAt).toISOString() : null, note }) }));
-      completed = true; scheduleReturn("Correction request recorded for manager review. The original remains preserved. Returning to the employee ID screen…");
+      await data(await fetch(`${serverUrl}/api/kiosk/corrections`, { method: "POST", headers: kioskHeaders({ "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" }), body: JSON.stringify({ kind, targetPunchId: kind === "WRONG_TIME" ? targetPunchId || null : null, requestedType: kind === "MISSED_PUNCH" ? requestedType : null, requestedOccurredAt: kind !== "OTHER" && requestedAt ? new Date(requestedAt).toISOString() : null, note }) }));
+      completed = true; scheduleReturn("Correction request recorded for manager review. The original remains preserved. Returning to the PIN screen…");
     } catch (error) {
-      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your employee ID again." });
+      if ((error as Error & { status?: number }).status === 401) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your PIN again." });
       else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Request failed." });
     } finally { if (!completed) setBusy(false); }
   }
@@ -145,7 +353,7 @@ export function App() {
   function cancelConfigurationHold() { if (configurationTimer.current !== null) window.clearTimeout(configurationTimer.current); configurationTimer.current = null; }
 
   if (setupOpen) return <main className="shell setup-shell"><form className="panel setup" onSubmit={saveServer}>
-    <p className="eyebrow">Manager configuration</p><h1>Connect this tablet</h1><p className="muted">Enter the HTTPS address for the TimeClock service. Only this address is stored on the device.</p>
+    <p className="eyebrow">Admin Account configuration</p><h1>Connect this tablet</h1><p className="muted">Enter the HTTPS address for the TimeClock service. Only this address is stored on the device.</p>
     {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
     <label>Server address<input type="url" value={serverDraft} onChange={(event) => setServerDraft(event.target.value)} placeholder="https://timeclock.example.com" required /></label>
     <button className="button primary" disabled={busy}>{busy ? "Testing connection…" : "Save and connect"}</button>
@@ -153,16 +361,45 @@ export function App() {
   </form></main>;
 
   return <main className="shell">
-    <header className="brand"><button className="brand-mark-button" onPointerDown={startConfigurationHold} onPointerUp={cancelConfigurationHold} onPointerCancel={cancelConfigurationHold} onPointerLeave={cancelConfigurationHold} onContextMenu={(event) => event.preventDefault()} aria-label="TimeClock"><span>T</span></button><div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>TimeClock</h1></div></header>
-    <section className="clock"><p>{dateTime.format(now).split(" at ")[0]}</p><strong>{dateTime.format(now).split(" at ")[1]}</strong></section>
+    <header className="brand"><button className="brand-mark-button" onPointerDown={startConfigurationHold} onPointerUp={cancelConfigurationHold} onPointerCancel={cancelConfigurationHold} onPointerLeave={cancelConfigurationHold} onContextMenu={(event) => event.preventDefault()} aria-label="TimeClock"><span>T</span></button><h1>TimeClock</h1></header>
+    {!managerReview && <section className="clock"><p>{dateTime.format(now).split(" at ")[0]}</p><strong>{dateTime.format(now).split(" at ")[1]}</strong></section>}
     {notice && <div className={`notice ${notice.kind}`} role="status">{notice.text}</div>}
-    {!session ? <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
-      <p className="eyebrow">Employee timeclock</p><h2>Enter your employee ID</h2><p className="muted">Use your four-digit ID, starting with 1. Confirm the correct action on the next screen.</p>
+    {managerReview ? <section className="manager-review">
+      <header className="panel manager-review-header">
+        <div><p className="eyebrow">Read-only manager review</p><h2>Biweekly employee punches</h2><p className="muted">Live central records for {managerReview.periodStart} through {managerReview.periodEnd}. Generated {new Date(managerReview.generatedAt).toLocaleTimeString()}.</p></div>
+        <button className="button quiet" type="button" onClick={() => setManagerReview(null)}>Back to my clock</button>
+      </header>
+      <nav className="manager-period-nav" aria-label="Pay period navigation">
+        <button className="button secondary" type="button" disabled={busy} onClick={() => void loadManagerReview(shiftDate(managerReview.periodStart, -14))}>← Previous two weeks</button>
+        <span>{managerReview.periodStart} — {managerReview.periodEnd}</span>
+        <button className="button secondary" type="button" disabled={busy} onClick={() => void loadManagerReview(shiftDate(managerReview.periodStart, 14))}>Next two weeks →</button>
+      </nav>
+      {managerReview.employees.length === 0 && <div className="panel empty">No active employees are configured.</div>}
+      {managerReview.employees.map(({ employee, summary }) => <article className="panel manager-employee" key={employee.id}>
+        <header className="manager-employee-header">
+          <div><p className="eyebrow">Employee {employee.employeeNumber}</p><h2>{employee.firstName} {employee.lastName}</h2></div>
+          <div className="manager-totals"><span>Exact <strong>{formatDuration(summary.actualMilliseconds)}</strong></span><span>Credit <strong>+{formatDuration(summary.creditMilliseconds)}</strong></span><span>Payable <strong>{formatDuration(summary.payableMilliseconds)}</strong></span><span>OT <strong>{formatDuration(summary.overtimeMilliseconds)}</strong></span></div>
+        </header>
+        {summary.issues.length > 0 && <div className="manager-flag">Review required: {summary.issues.length} {summary.issues.length === 1 ? "flag" : "flags"}</div>}
+        {summary.weeks.map((week) => <section className="manager-week" key={week.weekNumber}>
+          <header><strong>Week {week.weekNumber}</strong><span>{week.startDate} — {week.endDate}</span><span>{formatDuration(week.payableMilliseconds)} payable{week.overtimeMilliseconds ? ` · ${formatDuration(week.overtimeMilliseconds)} OT` : ""}</span></header>
+          <div className="manager-table-wrap"><table><thead><tr><th>Day</th><th>Punches</th><th>Exact</th><th>Credit</th><th>Payable</th><th>Status</th></tr></thead><tbody>
+            {week.days.map((day) => <tr className={day.issues.length ? "flagged-row" : ""} key={day.date}>
+              <th>{dayLabel(day.date)}</th>
+              <td className="manager-punches">{day.punches.length ? day.punches.map((punch) => <span key={punch.id}>{labels[punch.type]} {punch.localTime}{punch.revised ? " *" : ""}</span>) : <span className="muted">—</span>}</td>
+              <td>{formatDuration(day.actualMilliseconds)}</td><td>{day.creditMilliseconds ? `+${formatDuration(day.creditMilliseconds)}` : "—"}</td><td><strong>{formatDuration(day.payableMilliseconds)}</strong></td><td>{day.issues.length ? day.issues.map((issue) => <span className="flag" key={issue.code}>{issue.message}</span>) : <span className="ok-mark">Clear</span>}</td>
+            </tr>)}
+          </tbody></table></div>
+        </section>)}
+      </article>)}
+    </section> : !session ? <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
+      <p className="eyebrow">Employee timeclock</p><h2>Enter your PIN</h2><p className="muted">Use your private four-digit PIN. Confirm the correct action on the next screen.</p>
       <Keypad value={employeeId} onChange={setEmployeeId} submit={() => void signIn()} busy={busy} />
     </form> : <div className="grid">
-      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2><p className="employee-number">Employee ID {session.employee.employeeNumber}</p></div><button className="button quiet" onClick={() => returnToCode()}>Not me</button></div>
+      <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2>{session.employee.manager && <p className="employee-number">Admin Account</p>}{session.offline && <p className="employee-number">Offline · punches save on this tablet</p>}</div><button className="button quiet" onClick={() => returnToCode()}>Done</button></div>
         <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>Confirm {labels[type].toLowerCase()}</strong><small>{type === "WORK_IN" ? "You are currently clocked out" : "You are currently clocked in"}</small></button>)}</div>
         <p className="break"><b>No automatic deductions:</b> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
+        {session.employee.manager && <button className="button primary" type="button" disabled={busy || session.offline} onClick={() => void loadManagerReview("")}>{session.offline ? "See hours requires internet" : "See hours for every employee"}</button>}
       </section>
       <section className="panel recent"><p className="eyebrow">Your record</p><h2>Recently recorded time</h2><ol>{session.recentPunches.length === 0 && <li className="empty">No punches yet.</li>}{session.recentPunches.map((item) => <li key={item.id}><span>{labels[item.type]}</span><time>{new Intl.DateTimeFormat("en-US", { timeZone: session.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.occurredAt))}</time>{item.revised && <small>Corrected; original preserved</small>}</li>)}</ol>
         <button className="button secondary" onClick={() => setCorrectionOpen((open) => !open)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>
@@ -176,6 +413,6 @@ export function App() {
         <button className="button primary" disabled={busy}>{busy ? "Submitting…" : "Submit correction request"}</button>
       </form>}
     </div>}
-    <footer className="kiosk-footer">Original punches remain auditable. Use the correction request if your record does not match your work.</footer>
+    <footer className="kiosk-footer">{managerReview ? "Manager review is read-only and closes automatically. Punches come from the central TimeClock database." : `${queuedCount ? `${queuedCount} ${queuedCount === 1 ? "punch" : "punches"} saved locally, waiting to sync when internet returns. ` : ""}Original punches remain auditable. Use the correction request if your record does not match your work.`}</footer>
   </main>;
 }

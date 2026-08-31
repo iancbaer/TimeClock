@@ -1,7 +1,7 @@
 -- Replace public employee-code-plus-PIN kiosk authentication with one private
 -- clock code. Existing values are retained only as nullable legacy fields so
 -- an administrator can rotate each worker onto a new clock code. They are no
--- longer accepted by the worker API or exposed by Steward.
+-- longer accepted by the worker API or exposed by TimeClock's manager mode.
 ALTER TABLE "Employee" ALTER COLUMN "employeeCode" DROP NOT NULL;
 ALTER TABLE "Employee" ALTER COLUMN "pinHash" DROP NOT NULL;
 ALTER TABLE "Employee" ADD COLUMN "clockCodeLookup" TEXT;

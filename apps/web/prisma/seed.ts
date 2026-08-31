@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { pinCredential } from "../lib/employee-pin";
 
 const prisma = new PrismaClient();
 
@@ -32,13 +33,13 @@ async function main() {
   if (existingAdmin) {
     await prisma.adminUser.update({
       where: { id: existingAdmin.id },
-      data: { name: process.env.ADMIN_NAME ?? "Steward Owner" },
+      data: { name: process.env.ADMIN_NAME ?? "TimeClock Manager" },
     });
   } else {
     await prisma.adminUser.create({
       data: {
         email: adminEmail,
-        name: process.env.ADMIN_NAME ?? "Steward Owner",
+        name: process.env.ADMIN_NAME ?? "TimeClock Manager",
         passwordHash: await hash(adminPassword, 12),
       },
     });
@@ -60,6 +61,30 @@ async function main() {
         data: { employeeNumber: "1001", firstName: "Sample", lastName: "Employee" },
       });
     }
+  }
+
+  const realRoster = [
+    { employeeNumber: "1001", firstName: "Erwin", lastName: "Altman", pin: "7380", manager: false },
+    { employeeNumber: "1002", firstName: "Araceli", lastName: "Cedeno-Cortez", pin: "2063", manager: false },
+    { employeeNumber: "1003", firstName: "Taimane", lastName: "Fanene", pin: "0505", manager: false },
+    { employeeNumber: "1004", firstName: "Tua", lastName: "Fanene", pin: "3396", manager: false },
+    { employeeNumber: "1005", firstName: "David", lastName: "Feeder", pin: "6766", manager: false },
+    { employeeNumber: "1006", firstName: "Carl", lastName: "Foreman", pin: "6084", manager: false },
+    { employeeNumber: "1007", firstName: "Jason", lastName: "Howard", pin: "7730", manager: false },
+    { employeeNumber: "1008", firstName: "Steven", lastName: "Schiller", pin: "1778", manager: false },
+    { employeeNumber: "1009", firstName: "Autry", lastName: "Stills", pin: "5728", manager: false },
+    { employeeNumber: "1010", firstName: "Willow", lastName: "Goldsmith", pin: "0382", manager: true },
+    { employeeNumber: "1011", firstName: "Ian", lastName: "Baer", pin: "9999", manager: true },
+  ] as const;
+
+  for (const employee of realRoster) {
+    const { pin, ...record } = employee;
+    const credential = await pinCredential(pin);
+    await prisma.employee.upsert({
+      where: { employeeNumber: record.employeeNumber },
+      update: { ...record, active: true, ...credential },
+      create: { ...record, active: true, ...credential },
+    });
   }
 }
 

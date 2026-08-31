@@ -5,9 +5,9 @@ import { prisma } from "./db";
 import { HttpError } from "./http";
 import { failedAuthenticationGuard } from "./rate-limit";
 
-const COOKIE_NAME = "steward-admin";
+const COOKIE_NAME = "timeclock-admin";
 const SESSION_ISSUER = "timeclock";
-const SESSION_AUDIENCE = "steward-admin";
+const SESSION_AUDIENCE = "timeclock-admin";
 const DUMMY_HASH = "$2b$12$1qmj8y1xzSrZKJpjeSaAluuPrKSGIxQCqChM6QF4Y.cwcV9P.KK8e";
 
 function secret(): Uint8Array {
@@ -18,7 +18,7 @@ function secret(): Uint8Array {
 
 export async function authenticateAdmin(request: Request, email: string, password: string) {
   const guard = failedAuthenticationGuard(request, {
-    namespace: "steward-admin-login",
+    namespace: "timeclock-admin-login",
     failureLimit: 6,
     windowMs: 5 * 60 * 1000,
     blockMs: 5 * 60 * 1000,
@@ -63,14 +63,14 @@ export async function clearAdminSession(): Promise<void> {
 export async function requireAdmin() {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
-  if (!token) throw new HttpError(401, "Steward sign-in is required.", "AUTH_REQUIRED");
+  if (!token) throw new HttpError(401, "TimeClock manager sign-in is required.", "AUTH_REQUIRED");
   try {
     const verified = await jwtVerify(token, secret(), { issuer: SESSION_ISSUER, audience: SESSION_AUDIENCE });
     if (!verified.payload.sub) throw new Error("Missing subject");
     const admin = await prisma.adminUser.findUnique({ where: { id: verified.payload.sub } });
-    if (!admin) throw new Error("Unknown Steward user");
+    if (!admin) throw new Error("Unknown TimeClock administrator");
     return admin;
   } catch {
-    throw new HttpError(401, "Your Steward session has expired.", "AUTH_REQUIRED");
+    throw new HttpError(401, "Your TimeClock manager session has expired.", "AUTH_REQUIRED");
   }
 }

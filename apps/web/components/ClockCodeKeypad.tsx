@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 
-interface EmployeeIdKeypadProps {
+interface EmployeePinKeypadProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   busy: boolean;
 }
 
-export function EmployeeIdKeypad({ value, onChange, onSubmit, busy }: EmployeeIdKeypadProps) {
+export function EmployeePinKeypad({ value, onChange, onSubmit, busy }: EmployeePinKeypadProps) {
   function addDigit(digit: string) {
     if (!busy && value.length < 4) onChange(`${value}${digit}`);
   }
@@ -33,10 +33,10 @@ export function EmployeeIdKeypad({ value, onChange, onSubmit, busy }: EmployeeId
 
   return (
     <div className="clock-code-entry">
-      <output className="clock-code-display" aria-label={`${value.length} employee ID digits entered`} aria-live="polite">
-        {value || <span>Enter your 4-digit ID</span>}
+      <output className="clock-code-display" aria-label={`${value.length} PIN digits entered`} aria-live="polite">
+        {value || <span>Enter your 4-digit PIN</span>}
       </output>
-      <div className="numeric-keypad" aria-label="Numeric employee ID keypad">
+      <div className="numeric-keypad" aria-label="Numeric employee PIN keypad">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
           <button type="button" className="keypad-key" onClick={() => addDigit(digit)} disabled={busy} key={digit}>{digit}</button>
         ))}
@@ -44,7 +44,7 @@ export function EmployeeIdKeypad({ value, onChange, onSubmit, busy }: EmployeeId
         <button type="button" className="keypad-key" onClick={() => addDigit("0")} disabled={busy}>0</button>
         <button type="submit" className="keypad-key continue" disabled={busy || value.length !== 4}>{busy ? "Wait…" : "Continue"}</button>
       </div>
-      <p className="code-privacy-note">Your employee ID is cleared when you finish or after a recorded punch.</p>
+      <p className="code-privacy-note">Your PIN is cleared immediately after sign-in.</p>
     </div>
   );
 }

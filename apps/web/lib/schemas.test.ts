@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest";
 import { correctionSchema, employeeCreateSchema, employeeIdSessionSchema, employeeNumberSchema, punchSchema } from "./schemas";
 
 describe("kiosk input validation", () => {
-  it("accepts only an official 1xxx employee ID", () => {
-    expect(employeeIdSessionSchema.safeParse({ employeeNumber: "1001" }).success).toBe(true);
-    expect(employeeIdSessionSchema.safeParse({ employeeNumber: "1000" }).success).toBe(false);
-    expect(employeeIdSessionSchema.safeParse({ employeeNumber: "abcd" }).success).toBe(false);
+  it("accepts any four-digit employee PIN", () => {
+    expect(employeeIdSessionSchema.safeParse({ pin: "0007" }).success).toBe(true);
+    expect(employeeIdSessionSchema.safeParse({ pin: "9999" }).success).toBe(true);
+    expect(employeeIdSessionSchema.safeParse({ pin: "999" }).success).toBe(false);
+    expect(employeeIdSessionSchema.safeParse({ pin: "abcd" }).success).toBe(false);
   });
 
   it("reserves official employee numbers from 1001 through 1999", () => {
     expect(employeeNumberSchema.safeParse("1001").success).toBe(true);
     expect(employeeNumberSchema.safeParse("1999").success).toBe(true);
     expect(employeeNumberSchema.safeParse("1000").success).toBe(false);
-    expect(employeeCreateSchema.safeParse({ employeeNumber: "1001", firstName: "A", lastName: "B" }).success).toBe(true);
+    expect(employeeCreateSchema.safeParse({ firstName: "A", lastName: "B", manager: true, pin: "9999" }).success).toBe(true);
   });
 
   it("requires a UUID idempotency key for punches", () => {

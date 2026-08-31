@@ -55,9 +55,11 @@ model Employee {
   lastName           String
   clockCodeLookup    String?             @unique
   clockCodeHash      String?
+  offlinePinDigest   String?             @unique
   legacyEmployeeCode String?             @unique @map("employeeCode")
   legacyPinHash      String?             @map("pinHash")
   active             Boolean             @default(true)
+  manager            Boolean             @default(false)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   punches            Punch[]
