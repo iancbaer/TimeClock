@@ -24,8 +24,9 @@ The Windows app requires no new server port. It opens the existing full service 
 1. Verify the installer's SHA-256 checksum against the release manifest.
 2. Run `TimeClock-1.0.0-x64.exe` as the TRESA user. Choose the per-user install and keep both Start-menu and desktop shortcuts enabled.
 3. Windows may display an unknown-publisher warning because the package is unsigned. Confirm only after checking the release hash.
-4. Open TimeClock from the installed shortcut. Confirm a worker can reach the PIN screen and a manager can sign in and open a company report. Do not record a test punch in production.
-5. Pin the running TimeClock icon to the taskbar using Windows' **Pin to taskbar** action. Windows does not provide a stable supported installer API for forced taskbar pinning, so this final pin is manual.
-6. Close and relaunch from the taskbar. Confirm it works without the source repository or a development server.
+4. Open TimeClock from the installed shortcut. Enter a manager-enabled employee PIN and confirm **See hours for every employee** opens read-only totals, punch times, flags, and pay-period navigation. Do not record a test punch in production.
+5. From the TimeClock application menu, confirm **Worker clock** returns to the PIN screen and **Manager sign-in** opens the named-manager login used for approvals.
+6. Pin the running TimeClock icon to the taskbar using Windows' **Pin to taskbar** action. Windows does not provide a stable supported installer API for forced taskbar pinning, so this final pin is manual.
+7. Close and relaunch from the taskbar. Confirm it works without the source repository or a development server.
 
 Uninstalling the Windows client removes only the per-user desktop application. It does not remove or alter TimeClock server data.

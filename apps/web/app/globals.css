@@ -206,6 +206,28 @@ textarea { resize: vertical; }
 .punch-list .empty, .empty { color: var(--muted); }
 .correction-panel { grid-column: 1 / -1; }
 .kiosk-footer { padding: 1.5rem 0 0; color: var(--muted); text-align: center; font-size: 0.8rem; }
+.manager-review { display: grid; gap: 0.8rem; }
+.manager-review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.manager-review-header h2, .manager-review-employee h2 { margin: 0; }
+.manager-review-header .muted { margin-bottom: 0; }
+.manager-period-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border-radius: 0.9rem; padding: 0.7rem 0.9rem; background: var(--mint); font-size: 0.82rem; font-weight: 850; }
+.manager-period-nav > span { text-align: center; }
+.manager-review-employee { padding: 1.1rem; }
+.manager-review-employee-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.manager-review-totals { display: grid; grid-template-columns: repeat(4, auto); gap: 0.4rem 0.9rem; }
+.manager-review-totals span { display: grid; color: var(--muted); font-size: 0.7rem; text-transform: uppercase; }
+.manager-review-totals strong { color: var(--ink); font-size: 1.05rem; }
+.manager-review-week { margin-top: 0.75rem; }
+.manager-review-week > header { display: flex; align-items: center; gap: 0.9rem; border-radius: 0.6rem 0.6rem 0 0; padding: 0.6rem 0.7rem; color: white; background: #2f4a50; font-size: 0.75rem; }
+.manager-review-week > header span:last-child { margin-left: auto; }
+.manager-review-table { overflow-x: auto; }
+.manager-review-table table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.manager-review-table th, .manager-review-table td { border-bottom: 1px solid var(--line); padding: 0.5rem; text-align: left; vertical-align: top; }
+.manager-review-table thead th { color: #4a5b5c; background: #f1f3ec; }
+.manager-review-table tbody th { white-space: nowrap; }
+.manager-review-punches { display: grid; gap: 0.2rem; min-width: 9rem; }
+.manager-review-punches span { white-space: nowrap; }
+.manager-review-launch { margin-top: 0.8rem; }
 
 /* Keep the ordinary code-entry task on one landscape tablet screen without
    shrinking its touch targets below a comfortable size. */
@@ -375,6 +397,12 @@ tfoot th, tfoot td { background: #edf2ed; font-weight: 850; }
   .payroll-entry-card { grid-template-columns: 1fr; }
   .company-employee-report > header { align-items: start; display: grid; }
   .manager-totals { justify-content: start; }
+  .manager-review-header, .manager-review-employee-header { display: grid; }
+  .manager-review-totals { grid-template-columns: repeat(2, 1fr); }
+  .manager-period-nav { display: grid; grid-template-columns: 1fr 1fr; }
+  .manager-period-nav > span { grid-column: 1 / -1; grid-row: 1; }
+  .manager-review-week > header { align-items: flex-start; flex-wrap: wrap; }
+  .manager-review-week > header span:last-child { margin-left: 0; }
 }
 
 @media (max-width: 560px) {

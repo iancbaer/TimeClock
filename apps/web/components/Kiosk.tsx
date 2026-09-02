@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDuration } from "@timeclock/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmployeePinKeypad } from "./ClockCodeKeypad";
 
@@ -16,12 +17,60 @@ interface SessionData {
   recentPunches: Array<{ id: string; type: RecordPunchType; occurredAt: string; originalOccurredAt?: string; revised?: boolean }>;
 }
 
+interface ManagerReview {
+  companyName: string;
+  timeZone: string;
+  periodStart: string;
+  periodEnd: string;
+  generatedAt: string;
+  recordSource: "central-database";
+  employees: Array<{
+    employee: { id: string; employeeNumber: string; firstName: string; lastName: string; active: boolean };
+    summary: {
+      actualMilliseconds: number;
+      creditMilliseconds: number;
+      payableMilliseconds: number;
+      overtimeMilliseconds: number;
+      issues: Array<{ code: string; message: string; localDate: string }>;
+      weeks: Array<{
+        weekNumber: number;
+        startDate: string;
+        endDate: string;
+        payableMilliseconds: number;
+        overtimeMilliseconds: number;
+        days: Array<{
+          date: string;
+          actualMilliseconds: number;
+          creditMilliseconds: number;
+          payableMilliseconds: number;
+          issues: Array<{ code: string; message: string }>;
+          punches: Array<{ id: string; type: RecordPunchType; localTime: string; revised: boolean }>;
+        }>;
+      }>;
+    };
+  }>;
+}
+
 const punchLabels: Record<RecordPunchType, string> = {
   WORK_IN: "Clock in",
   MEAL_START: "Start meal",
   MEAL_END: "End meal",
   WORK_OUT: "Clock out",
 };
+
+function shiftDate(value: string, days: number): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}
+
+function dayLabel(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T12:00:00Z`));
+}
 
 async function readJson(response: Response) {
   const data = await response.json();
@@ -37,6 +86,7 @@ export function Kiosk() {
   const [employeeId, setEmployeeId] = useState("");
   const [session, setSession] = useState<SessionData | null>(null);
   const [sessionToken, setSessionToken] = useState("");
+  const [managerReview, setManagerReview] = useState<ManagerReview | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -60,6 +110,7 @@ export function Kiosk() {
   const returnToCode = useCallback((notice?: { kind: "error" | "success"; text: string }) => {
     setSession(null);
     setSessionToken("");
+    setManagerReview(null);
     setEmployeeId("");
     setCorrectionOpen(false);
     setTargetPunchId("");
@@ -74,7 +125,7 @@ export function Kiosk() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || managerReview) return;
     let timer = 0;
     const restart = () => {
       window.clearTimeout(timer);
@@ -90,17 +141,34 @@ export function Kiosk() {
       window.removeEventListener("keydown", restart);
       window.removeEventListener("input", restart);
     };
-  }, [returnToCode, session]);
+  }, [managerReview, returnToCode, session]);
+
+  useEffect(() => {
+    if (!managerReview) return;
+    let timer = 0;
+    const restart = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => returnToCode({ kind: "error", text: "For privacy, manager review closed after two minutes without activity." }), 120_000);
+    };
+    restart();
+    window.addEventListener("pointerdown", restart, { passive: true });
+    window.addEventListener("keydown", restart);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", restart);
+      window.removeEventListener("keydown", restart);
+    };
+  }, [managerReview, returnToCode]);
 
   const formatter = useMemo(() => new Intl.DateTimeFormat("en-US", {
-    timeZone: session?.timeZone,
+    timeZone: managerReview?.timeZone ?? session?.timeZone,
     weekday: "long",
     month: "long",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
-  }), [session?.timeZone]);
+  }), [managerReview?.timeZone, session?.timeZone]);
 
   async function signIn() {
     if (busy || employeeId.length !== 4) return;
@@ -128,6 +196,27 @@ export function Kiosk() {
     confirmationTimer.current = window.setTimeout(() => returnToCode({ kind: "success", text }), 1_800);
   }
 
+  async function loadManagerReview(periodStart = "") {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const query = periodStart ? `?periodStart=${encodeURIComponent(periodStart)}` : "";
+      const data = (await readJson(await fetch(`/api/kiosk/manager/review${query}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      }))) as { review: ManagerReview };
+      setManagerReview(data.review);
+    } catch (error) {
+      if ([401, 403].includes((error as Error & { status?: number }).status ?? 0)) {
+        returnToCode({ kind: "error", text: error instanceof Error ? error.message : "A manager-enabled employee PIN is required." });
+      } else {
+        setMessage({ kind: "error", text: error instanceof Error ? error.message : "Could not load manager review." });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function punch(type: PunchType) {
     setBusy(true);
     setMessage(null);
@@ -139,7 +228,18 @@ export function Kiosk() {
         body: JSON.stringify({ type, idempotencyKey: crypto.randomUUID(), deviceLabel: navigator.userAgent.slice(0, 80) }),
       }));
       completed = true;
-      schedulePrivateReturn(`${punchLabels[type]} recorded at ${new Date(data.punch.occurredAt).toLocaleTimeString()}. Returning to the PIN screen…`);
+      const recordedText = `${punchLabels[type]} recorded at ${new Date(data.punch.occurredAt).toLocaleTimeString()}.`;
+      if (session?.employee.manager) {
+        setSession((current) => current ? {
+          ...current,
+          allowedPunchTypes: [type === "WORK_IN" ? "WORK_OUT" : "WORK_IN"],
+          recentPunches: [{ id: data.punch.id, type, occurredAt: data.punch.occurredAt }, ...current.recentPunches].slice(0, 12),
+        } : current);
+        setMessage({ kind: "success", text: recordedText });
+        setBusy(false);
+      } else {
+        schedulePrivateReturn(`${recordedText} Returning to the PIN screen…`);
+      }
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
         returnToCode({ kind: "error", text: error instanceof Error ? error.message : "Enter your PIN again." });
@@ -188,14 +288,44 @@ export function Kiosk() {
         <div><p className="eyebrow">{session?.companyName ?? "Worker timekeeping"}</p><h1>TimeClock</h1></div>
       </section>
 
-      <section className="clock-card" aria-live="polite">
+      {!managerReview && <section className="clock-card" aria-live="polite">
         <p className="live-date">{now ? formatter.format(now).split(" at ")[0] : "Current date"}</p>
         <p className="live-time">{now ? formatter.format(now).split(" at ")[1] : "—:—"}</p>
-      </section>
+      </section>}
 
       {message && <div className={`notice ${message.kind}`} role="status">{message.text}</div>}
 
-      {!session ? (
+      {managerReview ? (
+        <section className="manager-review">
+          <header className="panel manager-review-header">
+            <div><p className="eyebrow">Read-only manager review</p><h2>Biweekly employee punches</h2><p className="muted">Live central records for {managerReview.periodStart} through {managerReview.periodEnd}. Generated {new Date(managerReview.generatedAt).toLocaleTimeString()}.</p></div>
+            <button className="button quiet" type="button" onClick={() => setManagerReview(null)}>Back to my clock</button>
+          </header>
+          <nav className="manager-period-nav" aria-label="Pay period navigation">
+            <button className="button secondary" type="button" disabled={busy} onClick={() => void loadManagerReview(shiftDate(managerReview.periodStart, -14))}>← Previous two weeks</button>
+            <span>{managerReview.periodStart} — {managerReview.periodEnd}</span>
+            <button className="button secondary" type="button" disabled={busy} onClick={() => void loadManagerReview(shiftDate(managerReview.periodStart, 14))}>Next two weeks →</button>
+          </nav>
+          {managerReview.employees.length === 0 && <div className="panel empty">No active employees are configured.</div>}
+          {managerReview.employees.map(({ employee, summary }) => <article className="panel manager-review-employee" key={employee.id}>
+            <header className="manager-review-employee-header">
+              <div><p className="eyebrow">Employee {employee.employeeNumber}</p><h2>{employee.firstName} {employee.lastName}</h2></div>
+              <div className="manager-review-totals"><span>Exact <strong>{formatDuration(summary.actualMilliseconds)}</strong></span><span>Credit <strong>+{formatDuration(summary.creditMilliseconds)}</strong></span><span>Payable <strong>{formatDuration(summary.payableMilliseconds)}</strong></span><span>OT <strong>{formatDuration(summary.overtimeMilliseconds)}</strong></span></div>
+            </header>
+            {summary.issues.length > 0 && <div className="manager-flag">Review required: {summary.issues.length} {summary.issues.length === 1 ? "flag" : "flags"}</div>}
+            {summary.weeks.map((week) => <section className="manager-review-week" key={week.weekNumber}>
+              <header><strong>Week {week.weekNumber}</strong><span>{week.startDate} — {week.endDate}</span><span>{formatDuration(week.payableMilliseconds)} payable{week.overtimeMilliseconds ? ` · ${formatDuration(week.overtimeMilliseconds)} OT` : ""}</span></header>
+              <div className="manager-review-table"><table><thead><tr><th>Day</th><th>Punches</th><th>Exact</th><th>Credit</th><th>Payable</th><th>Status</th></tr></thead><tbody>
+                {week.days.map((day) => <tr className={day.issues.length ? "flagged-row" : ""} key={day.date}>
+                  <th>{dayLabel(day.date)}</th>
+                  <td className="manager-review-punches">{day.punches.length ? day.punches.map((punch) => <span key={punch.id}>{punchLabels[punch.type]} {punch.localTime}{punch.revised ? " *" : ""}</span>) : <span className="muted">—</span>}</td>
+                  <td>{formatDuration(day.actualMilliseconds)}</td><td>{day.creditMilliseconds ? `+${formatDuration(day.creditMilliseconds)}` : "—"}</td><td><strong>{formatDuration(day.payableMilliseconds)}</strong></td><td>{day.issues.length ? day.issues.map((issue) => <span className="flag" key={`${day.date}-${issue.code}`}>{issue.message}</span>) : <span className="ok-mark">Clear</span>}</td>
+                </tr>)}
+              </tbody></table></div>
+            </section>)}
+          </article>)}
+        </section>
+      ) : !session ? (
         <form className="panel clock-code-panel" onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
           <div className="panel-heading keypad-heading">
             <p className="eyebrow">Employee timeclock</p>
@@ -216,6 +346,7 @@ export function Kiosk() {
               ))}
             </div>
             <p className="break-note"><strong>No automatic deductions:</strong> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
+            {session.employee.manager && <button className="button primary full manager-review-launch" type="button" disabled={busy} onClick={() => void loadManagerReview()}>See hours for every employee</button>}
           </section>
 
           <section className="panel recent-panel">
@@ -243,7 +374,7 @@ export function Kiosk() {
         </div>
       )}
 
-      <footer className="kiosk-footer">Original punches remain auditable. If your record does not match the work you performed, use the correction request so every hour can be reviewed and paid.</footer>
+      <footer className="kiosk-footer">{managerReview ? "Manager review is read-only and closes automatically. Punches come from the central TimeClock database." : "Original punches remain auditable. If your record does not match the work you performed, use the correction request so every hour can be reviewed and paid."}</footer>
     </main>
   );
 }

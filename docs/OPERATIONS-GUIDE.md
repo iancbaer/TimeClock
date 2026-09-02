@@ -17,15 +17,15 @@ Review each pending correction against schedules and available records. Approval
 
 Ian's active named-manager account can create another manager from Manager home. TimeClock displays a random temporary password once. The new manager must replace it with a password of at least 12 characters before any other manager action is available. Any active named manager may approve hours. TimeClock prevents a manager from disabling the account currently in use and serializes account changes so the last active manager cannot be disabled.
 
-### Review punches on the tablet
+### Review punches on a tablet or Windows worker clock
 
 1. Ian Baer enters his ordinary employee PIN, `9999`.
-2. Ian may clock in or out normally, then tap **See hours for every employee**.
+2. Ian may open **See hours for every employee** before punching. On Windows, a manager also remains on the confirmation screen after a successful punch so the report is still available; choose **Done** when finished.
 3. Review the current aligned two-week period for every active employee. Each employee card shows the TRESA database punches, exact time, paid-time credit, payable time, overtime, and record flags.
 4. Use **Previous two weeks** or **Next two weeks** when another period is needed.
-5. Tap **Back to my clock** when finished. The review is read-only and closes automatically after two minutes without activity.
+5. Select **Back to my clock** when finished. The review is read-only and closes automatically after two minutes without activity.
 
-Manager permission is part of Ian's employee record; it is not a separate service or shared review-only login. Tablet review cannot edit punches, approve corrections, or change settings. Use TimeClock's authenticated manager view for those administrative actions.
+Manager permission is part of Ian's employee record; it is not a separate service or shared review-only login. This PIN-based review cannot edit punches, approve corrections, or change settings. In the Windows application, use **TimeClock → Manager sign-in** for those named-manager administrative actions.
 
 ### Configure an Android kiosk
 

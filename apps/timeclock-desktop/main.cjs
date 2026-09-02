@@ -53,6 +53,19 @@ async function loadTimeClock() {
   }
 }
 
+async function loadManagerSignIn() {
+  const serverUrl = readServerUrl();
+  if (!validServerUrl(serverUrl)) {
+    showSettings();
+    return;
+  }
+  try {
+    await window.loadURL(new URL("/admin/login", serverUrl).toString());
+  } catch {
+    showSettings("TimeClock could not reach manager sign-in. Check the address and network, then try again.");
+  }
+}
+
 function createWindow() {
   window = new BrowserWindow({
     width: 1040,
@@ -76,7 +89,9 @@ function createWindow() {
   });
   window.webContents.on("will-navigate", (event, destination) => {
     const configured = readServerUrl();
-    if (configured && destination.startsWith(configured)) return;
+    try {
+      if (configured && new URL(destination).origin === new URL(configured).origin) return;
+    } catch {}
     if (destination.startsWith("file:")) return;
     event.preventDefault();
     void shell.openExternal(destination);
@@ -86,7 +101,9 @@ function createWindow() {
     {
       label: "TimeClock",
       submenu: [
-        { label: "Reload", accelerator: "CmdOrCtrl+R", click: () => loadTimeClock() },
+        { label: "Worker clock", click: () => loadTimeClock() },
+        { label: "Manager sign-in", click: () => loadManagerSignIn() },
+        { label: "Reload", accelerator: "CmdOrCtrl+R", click: () => window.webContents.reload() },
         { label: "Connection settings", click: () => showSettings() },
         { type: "separator" },
         { role: "quit" },

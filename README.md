@@ -130,7 +130,7 @@ Use the same device-key value as `KIOSK_DEVICE_KEY` on the gateway host. The APK
 npm run dist:windows --workspace @timeclock/desktop
 ```
 
-The x64 NSIS installer is created in `apps/timeclock-desktop/release`. It installs per user and creates Start-menu and desktop shortcuts. The TRESA build defaults to the existing full tailnet-only service and applies its hostname-to-tailnet-IP mapping inside Electron; it does not change Windows DNS, Tailscale, the Funnel, or any kiosk endpoint.
+The x64 NSIS installer is created in `apps/timeclock-desktop/release`. It installs per user and creates Start-menu and desktop shortcuts. The Windows worker clock supports the same manager-PIN report as the tablet: a manager-enabled employee can open read-only biweekly hours for every employee, navigate periods, and inspect totals, punch times, and flags. The TimeClock application menu also provides direct **Worker clock** and **Manager sign-in** destinations. The TRESA build defaults to the existing full tailnet-only service and applies its hostname-to-tailnet-IP mapping inside Electron; it does not change Windows DNS, Tailscale, the Funnel, or any kiosk endpoint.
 
 ## Scope
 
