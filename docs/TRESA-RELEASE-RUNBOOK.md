@@ -1,6 +1,8 @@
 # Guarded TRESA release and Windows installation
 
-This release is prepared but must not be deployed until the owner explicitly authorizes production rollout. The current release hold remains in effect until the tablet located at the Ridpath has been updated and the owner confirms rollout may proceed. Do not change the deployed tablet, its APK, the kiosk device key, the public gateway, the Funnel hostname, or Funnel port `10000` as part of this release-candidate work.
+Release `f9fe05c` was deployed to TRESA on September 2, 2026 after the owner explicitly lifted the Ridpath hold. T1 and T2 remain on their existing compatible builds. Do not change a deployed tablet, its APK, the kiosk device key, the public gateway, the Funnel hostname, or Funnel port `10000` unless a later rollout explicitly places that component in scope.
+
+The verified pre-deployment database backup is `production/backups/timeclock-20260902-160752.dump`; the previous production `.next` bundle is retained at `production/rollback/next-20260902-1609`. After rollout, all health routes and existing kiosk contracts returned HTTP 200, and the installed Windows manager-PIN report loaded all 11 employees.
 
 ## Server rollout
 
