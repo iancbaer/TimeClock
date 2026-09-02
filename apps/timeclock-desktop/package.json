@@ -2,7 +2,7 @@
   "name": "@timeclock/desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "Ubuntu desktop worker timekeeping app for TimeClock",
+  "description": "Desktop worker and manager application for TimeClock",
   "author": {
     "name": "Ian Baer",
     "email": "iancbaer@users.noreply.github.com"
@@ -13,6 +13,7 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --linux AppImage deb",
+    "dist:windows": "electron-builder --win nsis --x64",
     "lint": "node --check main.cjs && node --check preload.cjs"
   },
   "devDependencies": {
@@ -36,7 +37,10 @@
       "buildResources": "build"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office",
       "icon": "build/icon.png",
       "syncDesktopName": true,
@@ -47,6 +51,24 @@
           "StartupWMClass": "TimeClock"
         }
       }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TimeClock",
+      "uninstallDisplayName": "TimeClock"
     }
   }
 }

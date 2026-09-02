@@ -2,7 +2,9 @@ import { allowedPunchTypes } from "@timeclock/core";
 import type { PunchType } from "@prisma/client";
 import { prisma } from "./db";
 import { HttpError } from "./http";
+import { lockPayPeriod, markPeriodApprovalStale, periodStartForOccurrence } from "./payroll";
 import { toEffectivePunch } from "./punches";
+import { getSettings } from "./settings";
 
 export async function recordEmployeePunch(input: {
   employeeId: string;
@@ -14,6 +16,9 @@ export async function recordEmployeePunch(input: {
 }) {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`WITH acquired AS (SELECT pg_advisory_xact_lock(hashtext(${input.employeeId}))) SELECT 1::int AS "locked" FROM acquired`;
+    const settings = await getSettings(tx);
+    const periodStart = periodStartForOccurrence(settings, input.occurredAt);
+    await lockPayPeriod(tx, periodStart);
     const duplicate = await tx.punch.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
     if (duplicate) {
       if (duplicate.employeeId !== input.employeeId) throw new HttpError(409, "That request key is already in use.");
@@ -52,6 +57,12 @@ export async function recordEmployeePunch(input: {
         metadata: { type: created.type, source: created.source, deviceLabel: created.deviceLabel, offlineQueued: Boolean(input.offlineQueued) },
       },
     });
+    await markPeriodApprovalStale(
+      tx,
+      periodStart,
+      input.offlineQueued ? "A queued offline punch arrived after approval." : "A punch was recorded after approval.",
+      created.id,
+    );
     return created;
   }, { isolationLevel: "Serializable" });
 }

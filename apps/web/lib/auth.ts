@@ -27,8 +27,8 @@ export async function authenticateAdmin(request: Request, email: string, passwor
   });
   guard.enforce();
   const admin = await prisma.adminUser.findUnique({ where: { email: email.trim().toLowerCase() } });
-  const valid = admin ? await compare(password, admin.passwordHash) : await compare(password, DUMMY_HASH).then(() => false);
-  if (!admin || !valid) {
+  const valid = admin?.active ? await compare(password, admin.passwordHash) : await compare(password, DUMMY_HASH).then(() => false);
+  if (!admin?.active || !valid) {
     guard.fail();
     throw new HttpError(401, "Email or password is incorrect.", "INVALID_CREDENTIALS");
   }
@@ -36,8 +36,8 @@ export async function authenticateAdmin(request: Request, email: string, passwor
   return admin;
 }
 
-export async function createAdminSession(admin: { id: string; email: string; name: string }): Promise<void> {
-  const token = await new SignJWT({ email: admin.email, name: admin.name })
+export async function createAdminSession(admin: { id: string; email: string; name: string; mustChangePassword: boolean }): Promise<void> {
+  const token = await new SignJWT({ email: admin.email, name: admin.name, mustChangePassword: admin.mustChangePassword })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(admin.id)
     .setIssuer(SESSION_ISSUER)
@@ -60,7 +60,7 @@ export async function clearAdminSession(): Promise<void> {
   store.set(COOKIE_NAME, "", { httpOnly: true, sameSite: "strict", path: "/", maxAge: 0 });
 }
 
-export async function requireAdmin() {
+export async function requireAdmin(options: { allowPasswordChangeRequired?: boolean } = {}) {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   if (!token) throw new HttpError(401, "TimeClock manager sign-in is required.", "AUTH_REQUIRED");
@@ -68,9 +68,13 @@ export async function requireAdmin() {
     const verified = await jwtVerify(token, secret(), { issuer: SESSION_ISSUER, audience: SESSION_AUDIENCE });
     if (!verified.payload.sub) throw new Error("Missing subject");
     const admin = await prisma.adminUser.findUnique({ where: { id: verified.payload.sub } });
-    if (!admin) throw new Error("Unknown TimeClock administrator");
+    if (!admin?.active) throw new Error("Unknown or inactive TimeClock administrator");
+    if (admin.mustChangePassword && !options.allowPasswordChangeRequired) {
+      throw new HttpError(403, "Change your temporary password before continuing.", "PASSWORD_CHANGE_REQUIRED");
+    }
     return admin;
-  } catch {
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw new HttpError(401, "Your TimeClock manager session has expired.", "AUTH_REQUIRED");
   }
 }

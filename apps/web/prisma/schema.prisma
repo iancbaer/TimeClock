@@ -36,6 +36,11 @@ enum RoundingMode {
   EMPLOYEE_FAVOR_DAILY_CEILING
 }
 
+enum PayPeriodApprovalStatus {
+  APPROVED
+  REOPENED
+}
+
 model CompanySettings {
   id                      String       @id @default("default")
   companyName             String       @default("My Company")
@@ -44,6 +49,8 @@ model CompanySettings {
   workweekStartsOn        Int          @default(1)
   roundingMode            RoundingMode @default(EMPLOYEE_FAVOR_DAILY_CEILING)
   roundingIntervalMinutes Int          @default(15)
+  approvalDelayDays       Int?
+  approvalOpenLocalTime   String?
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 }
@@ -74,10 +81,42 @@ model AdminUser {
   email               String              @unique
   name                String
   passwordHash        String
+  active              Boolean             @default(true)
+  mustChangePassword  Boolean             @default(false)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   resolvedCorrections CorrectionRequest[] @relation("CorrectionResolver")
   punchRevisions      PunchRevision[]
+  approvedPeriods     PayPeriodApproval[] @relation("PeriodApprover")
+  reopenedPeriods     PayPeriodApproval[] @relation("PeriodReopener")
+}
+
+model PayPeriodApproval {
+  id                   String                  @id @default(cuid())
+  periodStart          DateTime                @db.Date
+  periodEnd            DateTime                @db.Date
+  version              Int
+  status               PayPeriodApprovalStatus @default(APPROVED)
+  approvedAt           DateTime                @default(now())
+  approvedById         String
+  blockerJustification String?
+  blockersSnapshot     Json
+  settingsSnapshot     Json
+  reportSnapshot       Json
+  snapshotHash         String
+  staleAt              DateTime?
+  staleReason          String?
+  reopenedAt           DateTime?
+  reopenedById         String?
+  reopenReason         String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  approvedBy           AdminUser               @relation("PeriodApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  reopenedBy           AdminUser?              @relation("PeriodReopener", fields: [reopenedById], references: [id], onDelete: Restrict)
+
+  @@unique([periodStart, version])
+  @@index([periodStart, status])
+  @@index([approvedAt])
 }
 
 model Punch {

@@ -18,7 +18,8 @@
     "db:seed": "npm run db:seed --workspace @timeclock/web",
     "android:sync": "npm run sync --workspace @timeclock/android",
     "demo:provision": "node scripts/provision-synthetic-employees.mjs",
-    "smoke": "node scripts/api-smoke.mjs"
+    "smoke": "node scripts/api-smoke.mjs",
+    "smoke:approval": "node scripts/payroll-approval-smoke.mjs"
   },
   "engines": {
     "node": ">=22.0.0",

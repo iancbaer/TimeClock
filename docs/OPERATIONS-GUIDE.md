@@ -11,7 +11,11 @@
 
 ### Review corrections and payroll
 
-Review each pending correction against schedules and available records. Approval appends a revision or creates a correction-sourced missing punch; rejection leaves original punches unchanged. Always enter a specific resolution note. Before payroll, follow the reconciliation procedure in [REPORTS-AND-EVIDENCE.md](REPORTS-AND-EVIDENCE.md).
+Review each pending correction against schedules and available records. Approval appends a revision or creates a correction-sourced missing punch; rejection leaves original punches unchanged. Always enter a specific resolution note. Before payroll, follow the reconciliation procedure in [REPORTS-AND-EVIDENCE.md](REPORTS-AND-EVIDENCE.md), then use the company report and named-manager approval described in [PAYROLL-APPROVAL.md](PAYROLL-APPROVAL.md).
+
+### Manage named managers
+
+Ian's active named-manager account can create another manager from Manager home. TimeClock displays a random temporary password once. The new manager must replace it with a password of at least 12 characters before any other manager action is available. Any active named manager may approve hours. TimeClock prevents a manager from disabling the account currently in use and serializes account changes so the last active manager cannot be disabled.
 
 ### Review punches on the tablet
 

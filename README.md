@@ -1,6 +1,6 @@
 # TimeClock
 
-TimeClock is worker-protective timekeeping for a shared Android tablet, Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked. Manager review and administration are modes of the same TimeClock application and use the same service and database.
+TimeClock is worker-protective timekeeping for a shared Android tablet, Windows or Ubuntu desktop, or browser. It preserves an accurate, auditable record so frontline employees can be paid for every hour worked. Manager review and administration are modes of the same TimeClock application and use the same service and database.
 
 ## Worker experience
 
@@ -22,7 +22,8 @@ Employee PINs are private kiosk credentials, stored by the service as keyed look
 - Server timestamps for connected punches; original tablet timestamps plus later database receipt times for offline punches; valid-state enforcement, idempotency, and per-worker database locking
 - Individual 14-day packets split into two independent seven-day workweeks
 - Exact time, paid time credit, regular payable time, overtime, flags, and correction history
-- Self-explanatory CSV and print/PDF evidence outputs with blank attestation lines
+- Company-wide draft reports, named-manager approval, immutable approval versions, and reopen history
+- Consolidated payroll CSV and print/PDF evidence generated from the same frozen approved snapshot
 - PostgreSQL, versioned migrations, Docker deployment, Android APK, and TimeClock desktop package
 
 The printable packet is a draft review record. Printing does not approve, sign, lock, or freeze a period.
@@ -35,6 +36,8 @@ The printable packet is a draft review record. Printing does not approve, sign, 
 - [Calculation contract and invariants](docs/CALCULATION-CONTRACT.md)
 - [Reports, outputs, and evidentiary purpose](docs/REPORTS-AND-EVIDENCE.md)
 - [Manager, kiosk, backup, retention, and deployment guide](docs/OPERATIONS-GUIDE.md)
+- [Payroll approval workflow and evidence rules](docs/PAYROLL-APPROVAL.md)
+- [Guarded TRESA release and Windows installation runbook](docs/TRESA-RELEASE-RUNBOOK.md)
 - [Security and privacy model; current versus recommended controls](docs/SECURITY-AND-PRIVACY.md)
 - [Vulnerability and deployment security policy](SECURITY.md)
 
@@ -102,6 +105,8 @@ npm run build
 
 With a designated test employee on a running server, set `SMOKE_EMPLOYEE_NUMBER` and `SMOKE_EMPLOYEE_PIN`; `npm run smoke` verifies PIN entry, failed-attempt throttling, strict alternating clock state, correction approval, report reconciliation, and evidence export.
 
+`npm run smoke:approval` is a mutating release test that is hard-blocked from non-localhost services. Run it only against a disposable PostgreSQL database with `TIMECLOCK_SMOKE_ALLOW_MUTATION=isolated-test-only`; it verifies manager setup, schedule gating, concurrent approval, frozen versions, reopen, stale detection, exports, audit events, and offline occurrence-time preservation.
+
 ## Client builds
 
 ### TimeClock Android
@@ -118,6 +123,14 @@ cd android
 ```
 
 Use the same device-key value as `KIOSK_DEVICE_KEY` on the gateway host. The APK bundles the worker and manager kiosk interface, its HTTPS service address, and its device authorization. It stores previously synchronized employee sign-in profiles and unsent offline punches on the device. CI’s debug APK is for testing; production requires an organization-controlled signing key and managed-device policy.
+
+### TimeClock for Windows
+
+```powershell
+npm run dist:windows --workspace @timeclock/desktop
+```
+
+The x64 NSIS installer is created in `apps/timeclock-desktop/release`. It installs per user and creates Start-menu and desktop shortcuts. The TRESA build defaults to the existing full tailnet-only service and applies its hostname-to-tailnet-IP mapping inside Electron; it does not change Windows DNS, Tailscale, the Funnel, or any kiosk endpoint.
 
 ## Scope
 

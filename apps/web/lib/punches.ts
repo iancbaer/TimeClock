@@ -1,9 +1,10 @@
-import type { Punch, PunchRevision } from "@prisma/client";
+import type { Prisma, PrismaClient, Punch, PunchRevision } from "@prisma/client";
 import type { EffectivePunch } from "@timeclock/core";
 import { DateTime } from "luxon";
 import { prisma } from "./db";
 
 type PunchWithRevisions = Punch & { revisions: PunchRevision[] };
+type PunchDatabase = Prisma.TransactionClient | PrismaClient;
 
 export function toEffectivePunch(punch: PunchWithRevisions): EffectivePunch | null {
   const revision = punch.revisions[0];
@@ -23,8 +24,9 @@ export async function effectivePunchesForEmployee(
   employeeId: string,
   from: Date,
   to: Date,
+  db: PunchDatabase = prisma,
 ): Promise<EffectivePunch[]> {
-  const punches = await prisma.punch.findMany({
+  const punches = await db.punch.findMany({
     where: {
       employeeId,
       OR: [

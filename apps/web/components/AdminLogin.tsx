@@ -23,7 +23,7 @@ export function AdminLogin() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Sign-in failed.");
-      router.push("/admin");
+      router.push(data.admin.mustChangePassword ? "/admin/change-password" : "/admin");
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");

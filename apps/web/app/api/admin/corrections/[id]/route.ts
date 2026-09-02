@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";
+import { activeApproval, lockPayPeriod, periodStartForOccurrence } from "@/lib/payroll";
+import { getSettings } from "@/lib/settings";
 
 const schema = z.object({
   decision: z.enum(["APPROVE", "REJECT"]),
@@ -17,6 +19,24 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const correction = await tx.correctionRequest.findUnique({ where: { id } });
       if (!correction) throw new HttpError(404, "Correction request not found.");
       if (correction.status !== "PENDING") throw new HttpError(409, "This correction has already been resolved.");
+
+      const settings = await getSettings(tx);
+      const targetPunch = correction.targetPunchId
+        ? await tx.punch.findUnique({ where: { id: correction.targetPunchId }, select: { occurredAt: true } })
+        : null;
+      const affectedTimes = [targetPunch?.occurredAt, correction.requestedOccurredAt, correction.submittedAt]
+        .filter((value): value is Date => Boolean(value));
+      const affectedPeriods = [...new Set(affectedTimes.map((value) => periodStartForOccurrence(settings, value)))].sort();
+      for (const periodStart of affectedPeriods) await lockPayPeriod(tx, periodStart);
+      for (const periodStart of affectedPeriods) {
+        if (await activeApproval(periodStart, tx)) {
+          throw new HttpError(
+            409,
+            `The pay period beginning ${periodStart} is approved. Reopen it with a reason before resolving this correction.`,
+            "PAY_PERIOD_APPROVED",
+          );
+        }
+      }
 
       const status = input.decision === "APPROVE" ? "APPROVED" : "REJECTED";
       const claimed = await tx.correctionRequest.updateMany({

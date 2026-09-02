@@ -3,6 +3,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 app.setName("TimeClock");
+const TRESA_SERVER_URL = "https://sds-commercial-core.tail1a6de3.ts.net:8443";
+const TRESA_TAILNET_IP = "100.99.82.75";
+app.commandLine.appendSwitch(
+  "host-resolver-rules",
+  `MAP sds-commercial-core.tail1a6de3.ts.net ${TRESA_TAILNET_IP}`,
+);
 let window;
 
 function configPath() {
@@ -14,7 +20,7 @@ function readServerUrl() {
   try {
     return JSON.parse(fs.readFileSync(configPath(), "utf8")).serverUrl;
   } catch {
-    return "";
+    return TRESA_SERVER_URL;
   }
 }
 

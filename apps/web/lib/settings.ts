@@ -1,11 +1,14 @@
 import { DateTime } from "luxon";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 
-export async function getSettings() {
-  const existing = await prisma.companySettings.findUnique({ where: { id: "default" } });
+type SettingsDatabase = Prisma.TransactionClient | PrismaClient;
+
+export async function getSettings(db: SettingsDatabase = prisma) {
+  const existing = await db.companySettings.findUnique({ where: { id: "default" } });
   if (existing) return existing;
   const monday = DateTime.now().setZone("America/Los_Angeles").startOf("week").toISODate()!;
-  return prisma.companySettings.create({
+  return db.companySettings.create({
     data: {
       id: "default",
       companyName: "My Company",

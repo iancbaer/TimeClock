@@ -13,6 +13,12 @@ const schema = z.object({
   workweekStartsOn: z.number().int().min(1).max(7),
   roundingMode: z.enum(["EXACT", "EMPLOYEE_FAVOR_DAILY_CEILING"]),
   roundingIntervalMinutes: z.literal(15),
+  approvalDelayDays: z.number().int().min(1).max(14).nullable(),
+  approvalOpenLocalTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable(),
+}).superRefine((value, context) => {
+  if ((value.approvalDelayDays === null) !== (value.approvalOpenLocalTime === null)) {
+    context.addIssue({ code: "custom", path: ["approvalOpenLocalTime"], message: "Choose both an approval day and time, or leave both unset." });
+  }
 });
 
 export async function GET() {
@@ -58,7 +64,12 @@ export async function PATCH(request: Request) {
           actorId: admin.id,
           entityType: "CompanySettings",
           entityId: "default",
-          metadata: { roundingMode: input.roundingMode, roundingIntervalMinutes: 15 },
+          metadata: {
+            roundingMode: input.roundingMode,
+            roundingIntervalMinutes: 15,
+            approvalDelayDays: input.approvalDelayDays,
+            approvalOpenLocalTime: input.approvalOpenLocalTime,
+          },
         },
       });
       return updated;

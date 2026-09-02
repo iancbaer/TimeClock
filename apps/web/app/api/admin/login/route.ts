@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const input = schema.parse(await request.json());
     const admin = await authenticateAdmin(request, input.email, input.password);
     await createAdminSession(admin);
-    return NextResponse.json({ admin: { id: admin.id, email: admin.email, name: admin.name } });
+    return NextResponse.json({ admin: { id: admin.id, email: admin.email, name: admin.name, mustChangePassword: admin.mustChangePassword } });
   } catch (error) {
     return errorResponse(error);
   }

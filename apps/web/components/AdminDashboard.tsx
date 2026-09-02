@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { payPeriodContaining } from "@timeclock/core";
 
 interface Employee {
   id: string;
@@ -33,13 +34,35 @@ interface Settings {
   workweekStartsOn: number;
   roundingMode: "EXACT" | "EMPLOYEE_FAVOR_DAILY_CEILING";
   roundingIntervalMinutes: 15;
+  approvalDelayDays: number | null;
+  approvalOpenLocalTime: string | null;
+}
+
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  mustChangePassword: boolean;
+}
+
+function dateInZone(timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 async function json(response: Response) {
   const data = await response.json();
   if (!response.ok) {
-    const error = new Error(data.error ?? "Request failed.") as Error & { status?: number };
+    const error = new Error(data.error ?? "Request failed.") as Error & { status?: number; code?: string };
     error.status = response.status;
+    error.code = data.code;
     throw error;
   }
   return data;
@@ -50,25 +73,36 @@ export function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [currentAdminId, setCurrentAdminId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", manager: false });
   const [newPin, setNewPin] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
+  const [newAdmin, setNewAdmin] = useState({ name: "", email: "" });
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeeData, correctionData, settingsData] = await Promise.all([
+      const [employeeData, correctionData, settingsData, userData] = await Promise.all([
         fetch("/api/admin/employees", { cache: "no-store" }).then(json),
         fetch("/api/admin/corrections?status=PENDING", { cache: "no-store" }).then(json),
         fetch("/api/admin/settings", { cache: "no-store" }).then(json),
+        fetch("/api/admin/users", { cache: "no-store" }).then(json),
       ]);
       setEmployees(employeeData.employees);
       setCorrections(correctionData.corrections);
       setSettings(settingsData.settings);
+      setAdminUsers(userData.users);
+      setCurrentAdminId(userData.currentAdminId);
     } catch (error) {
+      if ((error as Error & { status?: number; code?: string }).code === "PASSWORD_CHANGE_REQUIRED") {
+        router.replace("/admin/change-password");
+        return;
+      }
       if ((error as Error & { status?: number }).status === 401) {
         router.replace("/admin/login");
         return;
@@ -146,12 +180,56 @@ export function AdminDashboard() {
     }
   }
 
+  async function addAdminUser(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice(null);
+    setTemporaryPassword(null);
+    try {
+      const created = await json(await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAdmin),
+      }));
+      setNewAdmin({ name: "", email: "" });
+      setTemporaryPassword(created.temporaryPassword);
+      setNotice({ kind: "success", text: `Manager account created for ${created.user.name}. Save the one-time temporary password shown below.` });
+      await load();
+    } catch (error) {
+      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not create manager account." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setAdminActive(id: string, active: boolean) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      await json(await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      }));
+      setNotice({ kind: "success", text: active ? "Manager account enabled." : "Manager account disabled." });
+      await load();
+    } catch (error) {
+      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not update manager account." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function signOut() {
     await fetch("/api/admin/logout", { method: "POST" });
     router.replace("/admin/login");
   }
 
   if (loading && !settings) return <main className="admin-shell"><div className="loading-state">Loading TimeClock Manager…</div></main>;
+
+  const currentPeriodStart = settings
+    ? payPeriodContaining(settings.payPeriodAnchor, dateInZone(settings.timeZone), settings.timeZone)
+    : "";
 
   return (
     <main className="admin-shell">
@@ -170,6 +248,19 @@ export function AdminDashboard() {
         <article><strong>{corrections.length}</strong><span>Pending corrections</span></article>
         <article><strong>{settings?.roundingMode === "EMPLOYEE_FAVOR_DAILY_CEILING" ? "On" : "Off"}</strong><span>Worker-favorable pay credit</span></article>
       </section>
+
+      {settings && <section className="panel payroll-entry-card">
+        <div>
+          <p className="eyebrow">Company payroll control</p>
+          <h2>Two-week payroll report</h2>
+          <p>Review every employee together, approve a frozen version, and download the consolidated payroll files.</p>
+        </div>
+        <div className="payroll-entry-status">
+          <strong>{currentPeriodStart}</strong>
+          <span>{settings.approvalDelayDays === null ? "Approval schedule not configured" : `Approval opens ${settings.approvalDelayDays} day${settings.approvalDelayDays === 1 ? "" : "s"} after period end at ${settings.approvalOpenLocalTime}`}</span>
+        </div>
+        <Link className="button primary" href={`/admin/pay-period/${currentPeriodStart}`}>Open company report</Link>
+      </section>}
 
       <div className="admin-grid">
         <section className="panel admin-employees">
@@ -228,6 +319,29 @@ export function AdminDashboard() {
         </section>
       </div>
 
+      <section className="panel settings-panel">
+        <div className="panel-heading compact">
+          <p className="eyebrow">Named access</p>
+          <h2>Manager accounts</h2>
+          <p>Each manager signs in separately so approvals and corrections identify the person who acted.</p>
+        </div>
+        {temporaryPassword && <div className="temporary-password" role="status"><span>One-time temporary password</span><strong>{temporaryPassword}</strong><small>Share it privately. TimeClock will not show it again, and the manager must replace it at first sign-in.</small></div>}
+        <div className="admin-user-grid">
+          <div className="admin-user-list">
+            {adminUsers.map((user) => <article className={`admin-user-row ${user.active ? "" : "inactive"}`} key={user.id}>
+              <div><strong>{user.name}{user.id === currentAdminId ? " (you)" : ""}</strong><span>{user.email}</span><small>{user.mustChangePassword ? "Temporary password must be changed" : user.active ? "Active" : "Disabled"}</small></div>
+              <button className={`button ${user.active ? "danger" : "secondary"}`} type="button" disabled={busy || user.id === currentAdminId} onClick={() => void setAdminActive(user.id, !user.active)}>{user.active ? "Disable" : "Enable"}</button>
+            </article>)}
+          </div>
+          <form className="inline-form admin-user-form" onSubmit={addAdminUser}>
+            <h3>Add manager</h3>
+            <label>Name<input value={newAdmin.name} onChange={(event) => setNewAdmin({ ...newAdmin, name: event.target.value })} required /></label>
+            <label>Email<input type="email" value={newAdmin.email} onChange={(event) => setNewAdmin({ ...newAdmin, email: event.target.value })} required /></label>
+            <button className="button secondary" disabled={busy}>Create named account</button>
+          </form>
+        </div>
+      </section>
+
       {settings && (
         <form className="panel settings-panel" onSubmit={saveSettings}>
           <div className="panel-heading compact">
@@ -242,12 +356,25 @@ export function AdminDashboard() {
             <label>Workweek begins<select value={settings.workweekStartsOn} onChange={(event) => setSettings({ ...settings, workweekStartsOn: Number(event.target.value) })}>
               <option value={1}>Monday</option><option value={2}>Tuesday</option><option value={3}>Wednesday</option><option value={4}>Thursday</option><option value={5}>Friday</option><option value={6}>Saturday</option><option value={7}>Sunday</option>
             </select></label>
+            <label>Approval opens<select value={settings.approvalDelayDays ?? ""} onChange={(event) => {
+              const value = event.target.value;
+              setSettings({
+                ...settings,
+                approvalDelayDays: value ? Number(value) : null,
+                approvalOpenLocalTime: value ? settings.approvalOpenLocalTime ?? "09:00" : null,
+              });
+            }}>
+              <option value="">Not configured</option>
+              {Array.from({ length: 14 }, (_, index) => index + 1).map((days) => <option value={days} key={days}>{days === 1 ? "Next day" : `${days} days after period end`}</option>)}
+            </select></label>
+            <label>Approval time<input type="time" value={settings.approvalOpenLocalTime ?? ""} disabled={settings.approvalDelayDays === null} onChange={(event) => setSettings({ ...settings, approvalOpenLocalTime: event.target.value || null })} /></label>
           </div>
           <label className="toggle-row">
             <input type="checkbox" checked={settings.roundingMode === "EMPLOYEE_FAVOR_DAILY_CEILING"} onChange={(event) => setSettings({ ...settings, roundingMode: event.target.checked ? "EMPLOYEE_FAVOR_DAILY_CEILING" : "EXACT" })} />
             <span><strong>Worker-favorable 15-minute daily pay credit</strong><small>Round each day’s payable worked total up to the next quarter hour. Exact punches and exact meal duration remain visible.</small></span>
           </label>
           <div className="compliance-note"><strong>Built-in safeguard:</strong> paid rest periods are not deducted or rounded; recorded meals stay exact. Each week calculates overtime independently from the other week.</div>
+          <div className="compliance-note"><strong>Approval timing:</strong> TimeClock uses the company time zone and the server clock. Leave the schedule unconfigured until payroll chooses its opening day and time.</div>
           <button className="button primary" disabled={busy}>Save settings</button>
         </form>
       )}
