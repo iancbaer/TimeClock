@@ -46,6 +46,28 @@ interface AdminUser {
   mustChangePassword: boolean;
 }
 
+interface KioskRelease {
+  id: string;
+  versionCode: number;
+  versionName: string;
+  releaseNotes: string;
+  active: boolean;
+  publishedAt: string;
+}
+
+interface KioskDevice {
+  id: string;
+  label: string;
+  active: boolean;
+  installedVersionCode: number;
+  installedVersionName: string;
+  updateState: string;
+  lastUpdateError?: string | null;
+  lastSeenAt: string;
+  targetReleaseId?: string | null;
+  targetRelease?: KioskRelease | null;
+}
+
 function dateInZone(timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -74,6 +96,8 @@ export function AdminDashboard() {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [kioskDevices, setKioskDevices] = useState<KioskDevice[]>([]);
+  const [kioskReleases, setKioskReleases] = useState<KioskRelease[]>([]);
   const [currentAdminId, setCurrentAdminId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -87,17 +111,20 @@ export function AdminDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeeData, correctionData, settingsData, userData] = await Promise.all([
+      const [employeeData, correctionData, settingsData, userData, kioskData] = await Promise.all([
         fetch("/api/admin/employees", { cache: "no-store" }).then(json),
         fetch("/api/admin/corrections?status=PENDING", { cache: "no-store" }).then(json),
         fetch("/api/admin/settings", { cache: "no-store" }).then(json),
         fetch("/api/admin/users", { cache: "no-store" }).then(json),
+        fetch("/api/admin/kiosk-devices", { cache: "no-store" }).then(json),
       ]);
       setEmployees(employeeData.employees);
       setCorrections(correctionData.corrections);
       setSettings(settingsData.settings);
       setAdminUsers(userData.users);
       setCurrentAdminId(userData.currentAdminId);
+      setKioskDevices(kioskData.devices);
+      setKioskReleases(kioskData.releases);
     } catch (error) {
       if ((error as Error & { status?: number; code?: string }).code === "PASSWORD_CHANGE_REQUIRED") {
         router.replace("/admin/change-password");
@@ -215,6 +242,24 @@ export function AdminDashboard() {
       await load();
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not update manager account." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assignKioskRelease(id: string, targetReleaseId: string | null) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      await json(await fetch(`/api/admin/kiosk-devices/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetReleaseId }),
+      }));
+      setNotice({ kind: "success", text: targetReleaseId ? "Tablet update assigned. A manager will see it on that tablet." : "Tablet update assignment cleared." });
+      await load();
+    } catch (error) {
+      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not assign the tablet update." });
     } finally {
       setBusy(false);
     }
@@ -340,6 +385,29 @@ export function AdminDashboard() {
             <button className="button secondary" disabled={busy}>Create named account</button>
           </form>
         </div>
+      </section>
+
+      <section className="panel settings-panel">
+        <div className="panel-heading compact">
+          <p className="eyebrow">Field deployment</p>
+          <h2>Tablet updates</h2>
+          <p>T1 and T2 check in over the existing Funnel. Assigning a release makes it available after a manager signs in; punching is never blocked.</p>
+        </div>
+        {kioskDevices.length === 0 ? <p className="empty">No production-signed tablets have checked in yet. T1 and T2 will appear after their one-time field migration.</p> : <div className="kiosk-device-list">
+          {kioskDevices.map((device) => <article className={`kiosk-device-row ${device.active ? "" : "inactive"}`} key={device.id}>
+            <div className="kiosk-device-identity">
+              <strong>{device.label}</strong>
+              <span>TimeClock {device.installedVersionName} ({device.installedVersionCode})</span>
+              <small>Last contact {new Date(device.lastSeenAt).toLocaleString()} · {device.updateState.toLowerCase().replaceAll("_", " ")}</small>
+              {device.lastUpdateError && <small className="device-error">{device.lastUpdateError}</small>}
+            </div>
+            <label>Assigned release<select value={device.targetReleaseId ?? ""} disabled={busy || !device.active} onChange={(event) => void assignKioskRelease(device.id, event.target.value || null)}>
+              <option value="">No update assigned</option>
+              {kioskReleases.filter((release) => release.active).map((release) => <option value={release.id} key={release.id}>TimeClock {release.versionName} ({release.versionCode})</option>)}
+            </select></label>
+          </article>)}
+        </div>}
+        {kioskReleases.length > 0 && <div className="kiosk-release-list"><strong>Approved releases on TRESA</strong>{kioskReleases.map((release) => <span key={release.id}>Version {release.versionName} ({release.versionCode}) · {new Date(release.publishedAt).toLocaleDateString()}{release.active ? "" : " · inactive"}</span>)}</div>}
       </section>
 
       {settings && (

@@ -47,6 +47,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TimeClock}
+      TIMECLOCK_ANDROID_RELEASE_DIR: /var/lib/timeclock/android-releases
+    volumes:
+      - ${TIMECLOCK_ANDROID_RELEASE_HOST_DIR:-./.timeclock-android-releases}:/var/lib/timeclock/android-releases:ro
     ports:
       - "127.0.0.1:${TIMECLOCK_PORT:-3000}:3000"
     healthcheck:

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
@@ -26,8 +27,44 @@ interface OfflineRoster {
   profiles: Array<{ profileKey: string; session: Session }>;
 }
 
+type KioskUpdateState = "CURRENT" | "AVAILABLE" | "DOWNLOADING" | "INSTALLING" | "INSTALLED" | "FAILED" | "DISMISSED";
+
+interface AppInfo {
+  packageName: string;
+  versionCode: number;
+  versionName: string;
+  certificateSha256: string;
+  canInstallPackages: boolean;
+}
+
+interface AvailableUpdate {
+  id: string;
+  versionCode: number;
+  versionName: string;
+  releaseNotes: string;
+  sha256: string;
+  certificateSha256: string;
+  byteSize: number;
+  downloadPath: string;
+}
+
+interface AppUpdatePlugin {
+  getAppInfo(): Promise<AppInfo>;
+  openInstallPermissionSettings(): Promise<void>;
+  downloadAndInstall(options: {
+    url: string;
+    sha256: string;
+    certificateSha256: string;
+    headers: Record<string, string>;
+  }): Promise<{ started: boolean }>;
+}
+
+const AppUpdate = registerPlugin<AppUpdatePlugin>("AppUpdate");
+
 const OFFLINE_PROFILES_KEY = "timeclock-offline-profiles-v1";
 const OFFLINE_QUEUE_KEY = "timeclock-offline-punches-v1";
+const DEVICE_ID_KEY = "timeclock-device-id-v1";
+const DEVICE_LABEL_KEY = "timeclock-device-label-v1";
 const DEFAULT_SERVER_URL = import.meta.env.VITE_TIMECLOCK_SERVER_URL ?? "";
 const DEVICE_KEY = import.meta.env.VITE_TIMECLOCK_DEVICE_KEY ?? "";
 
@@ -37,6 +74,14 @@ function kioskHeaders(extra: Record<string, string> = {}): Record<string, string
 
 function storedJson<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
+}
+
+function storedDeviceId(): string {
+  const existing = localStorage.getItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+  const created = crypto.randomUUID();
+  localStorage.setItem(DEVICE_ID_KEY, created);
+  return created;
 }
 
 async function pinDigest(pin: string): Promise<string> {
@@ -141,6 +186,8 @@ export function App() {
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("timeclock-server") ?? DEFAULT_SERVER_URL);
   const [setupOpen, setSetupOpen] = useState(() => !serverUrl);
   const [serverDraft, setServerDraft] = useState(serverUrl);
+  const [deviceLabel, setDeviceLabel] = useState(() => localStorage.getItem(DEVICE_LABEL_KEY) ?? "");
+  const [deviceLabelDraft, setDeviceLabelDraft] = useState(() => localStorage.getItem(DEVICE_LABEL_KEY) ?? "");
   const [employeeId, setEmployeeId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [sessionToken, setSessionToken] = useState("");
@@ -156,6 +203,8 @@ export function App() {
   const [requestedType, setRequestedType] = useState<PunchType>("WORK_IN");
   const [requestedAt, setRequestedAt] = useState("");
   const [note, setNote] = useState("");
+  const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdate | null>(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
   const confirmationTimer = useRef<number | null>(null);
   const configurationTimer = useRef<number | null>(null);
 
@@ -212,6 +261,30 @@ export function App() {
     setQueuedCount(remaining.length);
   }, [serverUrl]);
 
+  const checkForUpdate = useCallback(async (updateState?: KioskUpdateState, lastUpdateError?: string | null, suppressDisplay = false) => {
+    if (!serverUrl || !deviceLabel || !Capacitor.isNativePlatform()) return null;
+    try {
+      const info = await AppUpdate.getAppInfo();
+      const deviceId = storedDeviceId();
+      const result = await data(await fetch(`${serverUrl}/api/kiosk/updates/check`, {
+        method: "POST",
+        headers: kioskHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          deviceId,
+          label: deviceLabel,
+          versionCode: info.versionCode,
+          versionName: info.versionName,
+          updateState,
+          lastUpdateError: lastUpdateError ?? null,
+        }),
+      })) as { update: AvailableUpdate | null };
+      if (!suppressDisplay) setAvailableUpdate(result.update);
+      return result.update;
+    } catch {
+      return null;
+    }
+  }, [deviceLabel, serverUrl]);
+
   useEffect(() => {
     void syncQueuedPunches();
     const timer = window.setInterval(() => void syncQueuedPunches(), 15_000);
@@ -219,6 +292,18 @@ export function App() {
     window.addEventListener("online", online);
     return () => { window.clearInterval(timer); window.removeEventListener("online", online); };
   }, [syncQueuedPunches]);
+
+  useEffect(() => {
+    void checkForUpdate();
+    const timer = window.setInterval(() => void checkForUpdate(), 6 * 60 * 60_000);
+    const online = () => void checkForUpdate();
+    window.addEventListener("online", online);
+    return () => { window.clearInterval(timer); window.removeEventListener("online", online); };
+  }, [checkForUpdate]);
+
+  useEffect(() => {
+    if (session?.employee.manager && !session.offline) void checkForUpdate();
+  }, [checkForUpdate, session?.employee.manager, session?.offline]);
 
   const returnToCode = useCallback((nextNotice?: { kind: "error" | "success"; text: string }) => {
     setSession(null); setSessionToken(""); setManagerReview(null); setOfflineProfileKey(""); setEmployeeId(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
@@ -247,10 +332,12 @@ export function App() {
   async function saveServer(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setNotice(null);
     const normalized = normalizedServer(serverDraft);
+    const normalizedLabel = deviceLabelDraft.trim();
     if (!normalized) { setNotice({ kind: "error", text: "Enter an HTTPS server address. HTTP is allowed only for local development." }); setBusy(false); return; }
+    if (!normalizedLabel) { setNotice({ kind: "error", text: "Give this tablet a short name, such as T1 or T2." }); setBusy(false); return; }
     try {
       await data(await fetch(`${normalized}/api/health`, { cache: "no-store" }));
-      localStorage.setItem("timeclock-server", normalized); setServerUrl(normalized); setSetupOpen(false); returnToCode({ kind: "success", text: "TimeClock is connected and ready." });
+      localStorage.setItem("timeclock-server", normalized); localStorage.setItem(DEVICE_LABEL_KEY, normalizedLabel); setServerUrl(normalized); setDeviceLabel(normalizedLabel); setSetupOpen(false); returnToCode({ kind: "success", text: "TimeClock is connected and ready." });
       void syncOfflineProfiles(normalized);
     } catch (error) { setNotice({ kind: "error", text: error instanceof Error ? `Could not connect: ${error.message}` : "Could not connect." }); }
     finally { setBusy(false); }
@@ -294,6 +381,37 @@ export function App() {
       if ([401, 403].includes((error as Error & { status?: number }).status ?? 0)) returnToCode({ kind: "error", text: error instanceof Error ? error.message : "An Admin Account is required." });
       else setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load manager review." });
     } finally { setBusy(false); }
+  }
+
+  async function installAvailableUpdate() {
+    if (!availableUpdate || !session?.employee.manager || session.offline || updateBusy) return;
+    setUpdateBusy(true); setNotice(null);
+    try {
+      await syncQueuedPunches();
+      const queued = storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []);
+      if (queued.length) throw new Error(`${queued.length} offline ${queued.length === 1 ? "punch is" : "punches are"} still waiting to synchronize. The update was postponed.`);
+      const info = await AppUpdate.getAppInfo();
+      if (!info.canInstallPackages) {
+        await AppUpdate.openInstallPermissionSettings();
+        throw new Error("Allow TimeClock to install updates, then return here and tap Install update again.");
+      }
+      await checkForUpdate("DOWNLOADING");
+      const deviceId = storedDeviceId();
+      await AppUpdate.downloadAndInstall({
+        url: new URL(availableUpdate.downloadPath, `${serverUrl}/`).toString(),
+        sha256: availableUpdate.sha256,
+        certificateSha256: availableUpdate.certificateSha256,
+        headers: kioskHeaders({ "X-TimeClock-Device-Id": deviceId }),
+      });
+      await checkForUpdate("INSTALLING");
+      setNotice({ kind: "success", text: "Android is ready to install the verified update. Confirm the system prompt to finish." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The tablet update could not be installed.";
+      await checkForUpdate("FAILED", message);
+      setNotice({ kind: "error", text: message });
+    } finally {
+      setUpdateBusy(false);
+    }
   }
 
   function scheduleReturn(text: string) { setNotice({ kind: "success", text }); confirmationTimer.current = window.setTimeout(() => returnToCode({ kind: "success", text }), 1_800); }
@@ -348,13 +466,14 @@ export function App() {
   }
 
   function startConfigurationHold() {
-    configurationTimer.current = window.setTimeout(() => { setServerDraft(serverUrl); setSetupOpen(true); }, 4_000);
+    configurationTimer.current = window.setTimeout(() => { setServerDraft(serverUrl); setDeviceLabelDraft(deviceLabel); setSetupOpen(true); }, 4_000);
   }
   function cancelConfigurationHold() { if (configurationTimer.current !== null) window.clearTimeout(configurationTimer.current); configurationTimer.current = null; }
 
   if (setupOpen) return <main className="shell setup-shell"><form className="panel setup" onSubmit={saveServer}>
-    <p className="eyebrow">Admin Account configuration</p><h1>Connect this tablet</h1><p className="muted">Enter the HTTPS address for the TimeClock service. Only this address is stored on the device.</p>
+    <p className="eyebrow">Admin Account configuration</p><h1>Connect this tablet</h1><p className="muted">Name the tablet and enter the HTTPS address for the TimeClock service. These settings stay on this device.</p>
     {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
+    <label>Tablet name<input value={deviceLabelDraft} onChange={(event) => setDeviceLabelDraft(event.target.value)} placeholder="T1" maxLength={80} required /></label>
     <label>Server address<input type="url" value={serverDraft} onChange={(event) => setServerDraft(event.target.value)} placeholder="https://timeclock.example.com" required /></label>
     <button className="button primary" disabled={busy}>{busy ? "Testing connection…" : "Save and connect"}</button>
     {serverUrl && <button className="button quiet" type="button" onClick={() => setSetupOpen(false)}>Cancel</button>}
@@ -400,6 +519,17 @@ export function App() {
         <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>Confirm {labels[type].toLowerCase()}</strong><small>{type === "WORK_IN" ? "You are currently clocked out" : "You are currently clocked in"}</small></button>)}</div>
         <p className="break"><b>No automatic deductions:</b> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
         {session.employee.manager && <button className="button primary" type="button" disabled={busy || session.offline} onClick={() => void loadManagerReview("")}>{session.offline ? "See hours requires internet" : "See hours for every employee"}</button>}
+        {session.employee.manager && availableUpdate && <aside className="tablet-update-card">
+          <p className="eyebrow">Tablet update available</p>
+          <h3>TimeClock {availableUpdate.versionName}</h3>
+          <p>{availableUpdate.releaseNotes}</p>
+          <small>{Math.max(1, Math.round(availableUpdate.byteSize / 1_048_576))} MB · signed and verified before Android opens the installer</small>
+          <div className="decision-row">
+            <button className="button primary" type="button" disabled={busy || updateBusy || session.offline} onClick={() => void installAvailableUpdate()}>{updateBusy ? "Preparing update…" : "Install update"}</button>
+            <button className="button quiet" type="button" disabled={updateBusy} onClick={() => { setAvailableUpdate(null); void checkForUpdate("DISMISSED", null, true); }}>Later</button>
+          </div>
+          <p className="form-help">Punching stays available even when an update is postponed.</p>
+        </aside>}
       </section>
       <section className="panel recent"><p className="eyebrow">Your record</p><h2>Recently recorded time</h2><ol>{session.recentPunches.length === 0 && <li className="empty">No punches yet.</li>}{session.recentPunches.map((item) => <li key={item.id}><span>{labels[item.type]}</span><time>{new Intl.DateTimeFormat("en-US", { timeZone: session.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.occurredAt))}</time>{item.revised && <small>Corrected; original preserved</small>}</li>)}</ol>
         <button className="button secondary" onClick={() => setCorrectionOpen((open) => !open)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>

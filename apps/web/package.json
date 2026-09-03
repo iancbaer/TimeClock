@@ -11,7 +11,8 @@
     "typecheck": "prisma generate && tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "release:publish": "node scripts/publish-android-release.mjs"
   },
   "dependencies": {
     "@timeclock/core": "1.0.0",

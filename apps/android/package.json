@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "sync": "npm run build --workspace @timeclock/kiosk && cap sync android",
-    "add": "npm run build --workspace @timeclock/kiosk && cap add android",
+    "sync": "npm run build --workspace @timeclock/kiosk && cap sync android && node scripts/configure-native.mjs",
+    "add": "npm run build --workspace @timeclock/kiosk && cap add android && node scripts/configure-native.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "open": "cap open android",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "release:manifest": "node scripts/create-release-manifest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.4.2",

@@ -41,6 +41,16 @@ enum PayPeriodApprovalStatus {
   REOPENED
 }
 
+enum KioskUpdateState {
+  CURRENT
+  AVAILABLE
+  DOWNLOADING
+  INSTALLING
+  INSTALLED
+  FAILED
+  DISMISSED
+}
+
 model CompanySettings {
   id                      String       @id @default("default")
   companyName             String       @default("My Company")
@@ -117,6 +127,41 @@ model PayPeriodApproval {
   @@unique([periodStart, version])
   @@index([periodStart, status])
   @@index([approvedAt])
+}
+
+model KioskRelease {
+  id                    String        @id @default(cuid())
+  versionCode           Int           @unique
+  versionName           String
+  releaseNotes          String
+  apkFileName           String        @unique
+  sha256                String
+  certificateSha256     String
+  byteSize              Int
+  active                Boolean       @default(true)
+  publishedAt           DateTime      @default(now())
+  publishedBy           String        @default("release-script")
+  targetedDevices       KioskDevice[]
+
+  @@index([active, versionCode])
+}
+
+model KioskDevice {
+  id                    String           @id
+  label                 String
+  active                Boolean          @default(true)
+  installedVersionCode  Int
+  installedVersionName  String
+  updateState           KioskUpdateState @default(CURRENT)
+  lastUpdateError       String?
+  lastSeenAt            DateTime         @default(now())
+  targetReleaseId       String?
+  targetRelease         KioskRelease?    @relation(fields: [targetReleaseId], references: [id], onDelete: SetNull)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([active, lastSeenAt])
+  @@index([targetReleaseId])
 }
 
 model Punch {

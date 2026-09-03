@@ -38,15 +38,29 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm ci
-      - run: npm run build --workspace @timeclock/kiosk
       - working-directory: apps/android
-        run: npx cap add android && npx cap sync android
+        run: npm run add
       - working-directory: apps/android
         run: npm run icons
       - working-directory: apps/android/android
-        run: ./gradlew assembleDebug
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/timeclock-release.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_TYPE: PKCS12
+        run: |
+          printf '%s' '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          ./gradlew assembleRelease
+      - working-directory: apps/android
+        env:
+          ANDROID_RELEASE_NOTES: ${{ github.event.head_commit.message || format('TimeClock release {0}', github.ref_name) }}
+        run: npm run release:manifest
       - uses: actions/upload-artifact@v4
         with:
-          name: timeclock-android
-          path: apps/android/android/app/build/outputs/apk/debug/app-debug.apk
+          name: timeclock-android-release
+          retention-days: 30
+          path: |
+            apps/android/android/app/build/outputs/apk/release/app-release.apk
+            apps/android/android/app/build/outputs/apk/release/release-manifest.json
           if-no-files-found: error

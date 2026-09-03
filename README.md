@@ -114,15 +114,29 @@ With a designated test employee on a running server, set `SMOKE_EMPLOYEE_NUMBER`
 ```bash
 export VITE_TIMECLOCK_SERVER_URL="https://timeclock.example.com"
 export VITE_TIMECLOCK_DEVICE_KEY="$(openssl rand -hex 32)"
-npm run build --workspace @timeclock/kiosk
 cd apps/android
-npx cap add android
-npx cap sync android
+npm run add
+npm run icons
 cd android
-./gradlew assembleDebug
+ANDROID_KEYSTORE_PATH=/secure/timeclock-release.p12 \
+ANDROID_KEYSTORE_PASSWORD=... ANDROID_KEY_ALIAS=timeclock ANDROID_KEY_PASSWORD=... \
+./gradlew assembleRelease
+cd ..
+npm run release:manifest
 ```
 
-Use the same device-key value as `KIOSK_DEVICE_KEY` on the gateway host. The APK bundles the worker and manager kiosk interface, its HTTPS service address, and its device authorization. It stores previously synchronized employee sign-in profiles and unsent offline punches on the device. CI’s debug APK is for testing; production requires an organization-controlled signing key and managed-device policy.
+Use the same device-key value as `KIOSK_DEVICE_KEY` on the gateway host. The APK bundles the worker and manager kiosk interface, its HTTPS service address, and its device authorization. It stores previously synchronized employee sign-in profiles and unsent offline punches on the device.
+
+Production builds use an organization-controlled PKCS12 signing key. The public repository never stores the key, passwords, or release APK. GitHub Actions expects `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` as repository secrets and retains the signed APK plus verified manifest as an authenticated Actions artifact.
+
+Approved APKs are published to the private TRESA release directory and assigned per tablet from the manager dashboard:
+
+```bash
+TIMECLOCK_ANDROID_RELEASE_DIR=/protected/timeclock/android-releases \
+npm run android:publish-release -- --apk /path/app-release.apk --manifest /path/release-manifest.json
+```
+
+Each production-signed tablet checks the existing kiosk service at launch, on reconnect, and every six hours. Only a manager sees the installation action. TimeClock synchronizes all queued offline punches, verifies the APK hash, package, newer version code, and signing certificate, then opens Android’s normal installer. Declining or failing an update never blocks punching. Moving an existing debug-signed tablet to the production key requires one uninstall/reinstall after its offline queue is confirmed empty; later updates preserve local application data.
 
 ### TimeClock for Windows
 

@@ -1,0 +1,24 @@
+def releaseBuildRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
+def releaseVariables = [
+    "ANDROID_KEYSTORE_PATH",
+    "ANDROID_KEYSTORE_PASSWORD",
+    "ANDROID_KEY_ALIAS",
+    "ANDROID_KEY_PASSWORD",
+]
+
+android.defaultConfig.versionCode = Integer.parseInt(System.getenv("ANDROID_VERSION_CODE") ?: "3")
+android.defaultConfig.versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.2.0"
+
+if (releaseBuildRequested) {
+    def missing = releaseVariables.findAll { !(System.getenv(it)?.trim()) }
+    if (!missing.isEmpty()) {
+        throw new GradleException("Signed TimeClock release requires: " + missing.join(", "))
+    }
+    def releaseSigning = android.signingConfigs.findByName("timeclockRelease") ?: android.signingConfigs.create("timeclockRelease")
+    releaseSigning.storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
+    releaseSigning.storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    releaseSigning.keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    releaseSigning.keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+    releaseSigning.storeType = System.getenv("ANDROID_KEYSTORE_TYPE") ?: "PKCS12"
+    android.buildTypes.getByName("release").signingConfig = releaseSigning
+}

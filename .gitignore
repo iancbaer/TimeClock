@@ -5,12 +5,16 @@ out/
 coverage/
 *.log
 *.tsbuildinfo
+*.jks
+*.keystore
+*.p12
 .env
 .env.local
 .env.*.local
 apps/android/android/
 apps/android/ios/
 apps/timeclock-desktop/release/
+.timeclock-android-releases/
 apps/web/prisma/dev.db*
 .DS_Store
 Thumbs.db

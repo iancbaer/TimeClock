@@ -29,7 +29,8 @@ Include the affected commit/version, reproducible steps using synthetic data, im
 
 - Employee IDs are intentionally accepted as low-friction identification on a supervised shared kiosk. They are predictable and are not strong authentication. The short-lived memory-only session and limited worker view reduce exposure, but this is not remote employee self-service or a substitute for private authentication where that is required.
 - The in-process API does not replace a reverse proxy/WAF, centralized rate limiting, monitoring, or intrusion detection.
-- Android debug APKs from CI are for testing. Managed production deployment should use an organization-controlled signing key and device-management policy.
+- Android production APKs use an organization-controlled signing key stored outside Git and in protected GitHub Actions secrets. Keep an encrypted recovery copy; losing the key makes in-place updates impossible.
+- Tablet APKs and release manifests are private TRESA-hosted artifacts. Do not publish them in public GitHub Releases while the shared kiosk device key remains embedded.
 - The shared kiosk device key filters public gateway traffic but is bundled into each APK and is not a substitute for employee PIN authentication, managed-device controls, or server-side session authorization.
 - This project does not store payroll bank information, Social Security numbers, or payroll credentials and should not be extended to do so without a separate security design review.
 
