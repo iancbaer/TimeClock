@@ -18,7 +18,7 @@
     "db:seed": "npm run db:seed --workspace @timeclock/web",
     "android:sync": "npm run sync --workspace @timeclock/android",
     "android:release-manifest": "npm run release:manifest --workspace @timeclock/android",
-    "android:publish-release": "npm run release:publish --workspace @timeclock/web",
+    "android:publish-release": "node apps/web/scripts/publish-android-release.mjs",
     "demo:provision": "node scripts/provision-synthetic-employees.mjs",
     "smoke": "node scripts/api-smoke.mjs",
     "smoke:approval": "node scripts/payroll-approval-smoke.mjs"
