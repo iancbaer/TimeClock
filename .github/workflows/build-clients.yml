@@ -2,6 +2,19 @@ name: Build TimeClock apps
 
 on:
   workflow_dispatch:
+    inputs:
+      android_version_code:
+        description: Android version code (must be higher than the installed release)
+        required: true
+        type: number
+      android_version_name:
+        description: Android version name shown to managers
+        required: true
+        type: string
+      android_release_notes:
+        description: Release notes shown before installation
+        required: true
+        type: string
   push:
     tags: ["v*"]
 
@@ -48,6 +61,8 @@ jobs:
         run: npm run icons
       - working-directory: apps/android/android
         env:
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+          ANDROID_VERSION_NAME: ${{ inputs.android_version_name }}
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/timeclock-release.p12
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -58,7 +73,7 @@ jobs:
           ./gradlew assembleRelease
       - working-directory: apps/android
         env:
-          ANDROID_RELEASE_NOTES: ${{ github.event.head_commit.message || format('TimeClock release {0}', github.ref_name) }}
+          ANDROID_RELEASE_NOTES: ${{ inputs.android_release_notes || github.event.head_commit.message || format('TimeClock release {0}', github.ref_name) }}
         run: npm run release:manifest
       - uses: actions/upload-artifact@v4
         with:
