@@ -39,7 +39,11 @@ jobs:
           java-version: "21"
       - run: npm ci
       - working-directory: apps/android
-        run: npm run add
+        env:
+          VITE_TIMECLOCK_DEVICE_KEY: ${{ secrets.KIOSK_DEVICE_KEY }}
+        run: |
+          test -n "$VITE_TIMECLOCK_DEVICE_KEY"
+          npm run add
       - working-directory: apps/android
         run: npm run icons
       - working-directory: apps/android/android

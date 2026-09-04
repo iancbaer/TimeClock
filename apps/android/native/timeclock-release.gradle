@@ -6,8 +6,8 @@ def releaseVariables = [
     "ANDROID_KEY_PASSWORD",
 ]
 
-android.defaultConfig.versionCode = Integer.parseInt(System.getenv("ANDROID_VERSION_CODE") ?: "3")
-android.defaultConfig.versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.2.0"
+android.defaultConfig.versionCode = Integer.parseInt(System.getenv("ANDROID_VERSION_CODE") ?: "4")
+android.defaultConfig.versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.2.1"
 
 if (releaseBuildRequested) {
     def missing = releaseVariables.findAll { !(System.getenv(it)?.trim()) }
