@@ -11,6 +11,14 @@ Cut over September 4, 2026 (Pacific). Application source: `f661c88`.
 
 ## Data and clients
 
+### Public website disabled; service remains available
+
+Public browser pages and assets return 404 at Caddy. `/api/*` service endpoints remain available with their existing application authentication; the bulk offline roster still requires the provisioned device key. No API authentication was removed. The token-protected backup endpoint is unchanged.
+
+For private browser access, connect to the organization's Tailscale network and use https://sds-commercial-core.tail1a6de3.ts.net:8443 through the TRESA bridge, which supplies the machine credential. Existing kiosk clients continue working. Never give this machine credential to browser users.
+
+To publish the website later, remove only the `@publicWebsite` matcher and its `respond` directive after launch approval. Keep the offline-roster device protection. No new monthly service was added.
+
 Cloud PostgreSQL is the **only active application database**. No seed ran and no employees were invented. Final cutover preserved all 11 employees, 53 punches, 14 correction requests and other existing records; every table's count and digest matched before opening the cloud app.
 
 TRESA's original app process was stopped before the final dump. Its PostgreSQL data is retained as a pre-cutover recovery copy, not a current replica. Never restart that original app alongside the cloud writer.

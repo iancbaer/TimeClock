@@ -15,11 +15,19 @@ timeclock.whichmore.com {
     respond 404
   }
   handle {
-    # The bulk offline roster contains PIN verifiers and must never be public.
+    # Keep the service available, but do not publish the browser interface.
+    # The private TRESA bridge can still serve the interface to tailnet users.
+    @publicWebsite {
+      not path /api/*
+      not header X-TimeClock-Device-Key {$KIOSK_DEVICE_KEY}
+    }
     @unauthorizedRoster {
       path /api/kiosk/offline-roster
       not header X-TimeClock-Device-Key {$KIOSK_DEVICE_KEY}
     }
+    header Cache-Control no-store
+    header X-Robots-Tag "noindex, nofollow, noarchive"
+    respond @publicWebsite "Not found" 404
     respond @unauthorizedRoster "Device authorization required" 401
     reverse_proxy app:3000 {
       header_up X-Forwarded-For {remote_host}
