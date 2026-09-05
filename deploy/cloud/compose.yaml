@@ -1,0 +1,50 @@
+name: timeclock
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: /srv/timeclock/secrets/database.env
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timeclock -d timeclock"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+  app:
+    image: ${TIMECLOCK_IMAGE:-timeclock:f661c88}
+    restart: unless-stopped
+    env_file: /srv/timeclock/secrets/app.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      database: { condition: service_healthy }
+    ports: ["127.0.0.1:3100:3000"]
+    volumes:
+      - /srv/timeclock/android-releases:/var/lib/timeclock/android-releases:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging: *logging
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: /srv/timeclock/secrets/proxy.env
+    ports: ["80:80", "443:443"]
+    volumes:
+      - /srv/timeclock/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/timeclock/backups:/backups:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging: *logging
+volumes:
+  postgres:
+  caddy-data:
+  caddy-config:

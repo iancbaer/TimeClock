@@ -1,0 +1,29 @@
+timeclock.whichmore.com {
+  encode gzip zstd
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options nosniff
+  }
+  handle /_timeclock-backup {
+    @authorized header Authorization "Bearer {$BACKUP_DOWNLOAD_TOKEN}"
+    handle @authorized {
+      rewrite * /latest.dump.age
+      root * /backups
+      header Cache-Control no-store
+      file_server
+    }
+    respond 404
+  }
+  handle {
+    # The bulk offline roster contains PIN verifiers and must never be public.
+    @unauthorizedRoster {
+      path /api/kiosk/offline-roster
+      not header X-TimeClock-Device-Key {$KIOSK_DEVICE_KEY}
+    }
+    respond @unauthorizedRoster "Device authorization required" 401
+    reverse_proxy app:3000 {
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Real-IP {remote_host}
+    }
+  }
+}
