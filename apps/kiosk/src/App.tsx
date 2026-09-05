@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Schedule } from "../../web/components/Schedule";
 
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
@@ -198,6 +199,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [kind, setKind] = useState("MISSED_PUNCH");
   const [targetPunchId, setTargetPunchId] = useState("");
   const [requestedType, setRequestedType] = useState<PunchType>("WORK_IN");
@@ -306,6 +308,7 @@ export function App() {
   }, [checkForUpdate, session?.employee.manager, session?.offline]);
 
   const returnToCode = useCallback((nextNotice?: { kind: "error" | "success"; text: string }) => {
+    setScheduleOpen(false);
     setSession(null); setSessionToken(""); setManagerReview(null); setOfflineProfileKey(""); setEmployeeId(""); setCorrectionOpen(false); setTargetPunchId(""); setRequestedAt(""); setNote(""); setBusy(false); setNotice(nextNotice ?? null);
   }, []);
 
@@ -534,6 +537,8 @@ export function App() {
       <section className="panel recent"><p className="eyebrow">Your record</p><h2>Recently recorded time</h2><ol>{session.recentPunches.length === 0 && <li className="empty">No punches yet.</li>}{session.recentPunches.map((item) => <li key={item.id}><span>{labels[item.type]}</span><time>{new Intl.DateTimeFormat("en-US", { timeZone: session.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.occurredAt))}</time>{item.revised && <small>Corrected; original preserved</small>}</li>)}</ol>
         <button className="button secondary" onClick={() => setCorrectionOpen((open) => !open)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>
       </section>
+      <div className="schedule-launch"><button className="button secondary" disabled={busy || session.offline} onClick={() => setScheduleOpen((open) => !open)}>{scheduleOpen ? "Close my schedule" : "My schedule & time off"}</button>{session.offline && <p className="muted">Reconnect and sign in to view your schedule or request time off.</p>}</div>
+      {scheduleOpen && !session.offline && <Schedule sessionToken={sessionToken} serverUrl={serverUrl} deviceKey={DEVICE_KEY} onSessionExpired={returnToCode} />}
       {correctionOpen && <form className="panel correction" onSubmit={requestCorrection}><p className="eyebrow">Protect the record</p><h2>Tell us what your time should show</h2><p className="muted">The original remains available for review. This screen closes after submission or inactivity.</p>
         <label>What happened?<select value={kind} onChange={(event) => setKind(event.target.value)}><option value="MISSED_PUNCH">I missed a punch</option><option value="WRONG_TIME">A punch has the wrong time</option><option value="OTHER">Something else</option></select></label>
         {kind === "WRONG_TIME" && <label>Which punch?<select value={targetPunchId} onChange={(event) => setTargetPunchId(event.target.value)} required><option value="">Choose a recent punch</option>{session.recentPunches.map((item) => <option value={item.id} key={item.id}>{labels[item.type]} — {new Date(item.occurredAt).toLocaleString()}</option>)}</select></label>}

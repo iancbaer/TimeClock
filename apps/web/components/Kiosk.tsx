@@ -3,6 +3,7 @@
 import { formatDuration } from "@timeclock/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmployeePinKeypad } from "./ClockCodeKeypad";
+import { Schedule } from "./Schedule";
 
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
@@ -91,6 +92,7 @@ export function Kiosk() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [correctionKind, setCorrectionKind] = useState("MISSED_PUNCH");
   const [targetPunchId, setTargetPunchId] = useState("");
   const [requestedType, setRequestedType] = useState<PunchType>("WORK_IN");
@@ -113,6 +115,7 @@ export function Kiosk() {
     setManagerReview(null);
     setEmployeeId("");
     setCorrectionOpen(false);
+    setScheduleOpen(false);
     setTargetPunchId("");
     setRequestedAt("");
     setCorrectionNote("");
@@ -347,6 +350,7 @@ export function Kiosk() {
             </div>
             <p className="break-note"><strong>No automatic deductions:</strong> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
             {session.employee.manager && <button className="button primary full manager-review-launch" type="button" disabled={busy} onClick={() => void loadManagerReview()}>See hours for every employee</button>}
+            <button className="button secondary full manager-review-launch" type="button" disabled={busy} onClick={() => setScheduleOpen((open) => !open)}>{scheduleOpen ? "Close my schedule" : "My schedule & time off"}</button>
           </section>
 
           <section className="panel recent-panel">
@@ -360,6 +364,7 @@ export function Kiosk() {
             <button className="button secondary full" type="button" onClick={() => setCorrectionOpen((value) => !value)}>{correctionOpen ? "Close correction form" : "Correct my time record"}</button>
           </section>
 
+          {scheduleOpen && <Schedule sessionToken={sessionToken} onSessionExpired={returnToCode} />}
           {correctionOpen && (
             <form className="panel correction-panel" onSubmit={submitCorrection}>
               <div className="panel-heading compact"><p className="eyebrow">Protect the record</p><h2>Tell us what your time should show</h2><p>Your request and the original punch remain visible for review. This screen closes automatically after submission or inactivity.</p></div>

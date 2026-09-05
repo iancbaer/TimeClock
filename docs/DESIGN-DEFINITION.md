@@ -50,7 +50,7 @@ This sentence is the architectural test for every TimeClock mode. A feature that
 
 The core calculation package owns state transition and time-calculation semantics. The Next.js service owns identity, authorization, server time, transactions, storage, and API contracts. TimeClock clients render those contracts and do not become independent record authorities.
 
-The current boundary deliberately excludes payroll transmission, scheduling, geolocation, biometrics, automatic discipline, period approval/freeze, accounting entries, and employee self-registration. These may be separate integrations or products later; they are not implied by time capture.
+Scheduling is an adjacent authenticated workflow in the same service, using existing employee identities; it does not generate punches or payable time. See [Scheduling and time off](SCHEDULING.md). The current boundary excludes payroll transmission, geolocation, biometrics, automatic discipline, accounting entries, and employee self-registration. Pay-period approval is documented separately in [Payroll approval](PAYROLL-APPROVAL.md).
 
 ## Four views of the same system
 

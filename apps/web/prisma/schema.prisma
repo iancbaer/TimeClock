@@ -81,6 +81,8 @@ model Employee {
   updatedAt          DateTime            @updatedAt
   punches            Punch[]
   corrections        CorrectionRequest[]
+  shifts             Shift[]
+  timeOffRequests    TimeOffRequest[]
 
   @@index([active, employeeNumber])
   @@index([active, lastName, firstName])
@@ -99,6 +101,7 @@ model AdminUser {
   punchRevisions      PunchRevision[]
   approvedPeriods     PayPeriodApproval[] @relation("PeriodApprover")
   reopenedPeriods     PayPeriodApproval[] @relation("PeriodReopener")
+  resolvedTimeOff      TimeOffRequest[]
 }
 
 model PayPeriodApproval {
@@ -235,4 +238,50 @@ model AuditEvent {
 
   @@index([entityType, entityId, createdAt])
   @@index([createdAt])
+}
+
+enum ShiftStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model Shift {
+  id          String      @id @default(cuid())
+  employeeId  String
+  startsAt    DateTime
+  endsAt      DateTime
+  note        String      @default("")
+  status      ShiftStatus @default(DRAFT)
+  version     Int         @default(1)
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, startsAt, endsAt])
+  @@index([status, startsAt])
+}
+
+model TimeOffRequest {
+  id           String        @id @default(cuid())
+  employeeId   String
+  startDate    DateTime      @db.Date
+  endDate      DateTime      @db.Date
+  note         String        @default("")
+  status       TimeOffStatus  @default(PENDING)
+  submittedAt  DateTime       @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  resolvedBy   AdminUser?     @relation(fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, startDate, endDate])
+  @@index([status, submittedAt])
 }

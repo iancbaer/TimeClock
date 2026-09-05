@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { HttpError, errorResponse } from "@/lib/http";
 import { getSettings } from "@/lib/settings";
+import { overlaps, timeOffBounds } from "@/lib/scheduling-rules";
 
 const schema = z.object({
   companyName: z.string().trim().min(1).max(120),
@@ -45,6 +46,15 @@ export async function PATCH(request: Request) {
       throw new HttpError(400, "The pay-period anchor must begin on the configured workweek day.");
     }
     const settings = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`WITH acquired AS (SELECT pg_advisory_xact_lock(hashtext('timeclock-scheduling'))) SELECT 1::int FROM acquired`;
+      const previous = await tx.companySettings.findUnique({ where: { id: "default" } });
+      if (previous && previous.timeZone !== input.timeZone) {
+        const leave = await tx.timeOffRequest.findMany({ where: { status: "APPROVED" } });
+        const shifts = await tx.shift.findMany({ where: { status: { not: "CANCELLED" } } });
+        if (leave.some((item) => shifts.some((shift) => shift.employeeId === item.employeeId && overlaps(shift, timeOffBounds(item.startDate.toISOString().slice(0, 10), item.endDate.toISOString().slice(0, 10), input.timeZone))))) {
+          throw new HttpError(409, "This timezone change would make a shift conflict with approved time off. Resolve the shift first.");
+        }
+      }
       const updated = await tx.companySettings.upsert({
         where: { id: "default" },
         update: {

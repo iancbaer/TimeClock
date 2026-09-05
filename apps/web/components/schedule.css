@@ -1,0 +1,23 @@
+.schedule-section { display: grid; gap: 1.25rem; grid-column: 1 / -1; min-width: 0; }
+.schedule-toolbar h2 { margin-bottom: 0.5rem; }
+.schedule-navigation, .schedule-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.schedule-navigation label { margin: 0; }
+.schedule-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
+.schedule-day { min-width: 0; padding: 0.65rem; background: var(--paper); border: 1px solid var(--line); border-radius: 0.8rem; }
+.schedule-day h3 { font-size: 0.9rem; margin-bottom: 1rem; }
+.schedule-day h3 span { display: block; color: var(--muted); font-weight: 500; margin-top: 0.25rem; }
+.schedule-entry { display: grid; gap: 0.5rem; border: 1px solid #adc5bc; border-left: 4px solid var(--teal); border-radius: 0.6rem; background: #edf5ef; padding: 0.65rem; margin-bottom: 0.65rem; font-size: 0.82rem; overflow-wrap: anywhere; }
+.schedule-entry.draft { border-style: dashed; border-left-color: var(--gold); background: #fff8e9; }
+.schedule-entry.leave { border-left-color: var(--muted); background: #eef0f5; }
+.schedule-entry .button { font-size: 0.75rem; padding: 0.45rem; }
+.schedule-badge { font-size: 0.72rem; font-weight: 800; color: var(--muted); }
+.schedule-note { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0.5rem 0; }
+.schedule-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.schedule-section fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+@media (max-width: 1000px) { .schedule-days { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .schedule-days, .schedule-forms { grid-template-columns: 1fr; } .schedule-navigation { align-items: end; } }
+.schedule-section { --paper: #fffef9; --line: #d9ddd3; --muted: #657274; --teal: #1d675f; --gold: #e5ad50; }
+.schedule-launch { grid-column: 1 / -1; }
+.schedule-section .correction-card { border: 1px solid #d9ddd3; border-radius: 0.8rem; padding: 1rem; margin-bottom: 0.75rem; }
+.schedule-section .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+@media (max-width: 650px) { .schedule-section .form-grid { grid-template-columns: 1fr; } }

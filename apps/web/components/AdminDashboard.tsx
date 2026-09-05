@@ -283,7 +283,7 @@ export function AdminDashboard() {
           <p className="eyebrow">Manager view · {settings?.companyName ?? "Your organization"}</p>
           <h1>TimeClock</h1>
         </div>
-        <nav><Link href="/">TimeClock worker app</Link><button className="button quiet" onClick={signOut}>Sign out</button></nav>
+        <nav><Link href="/admin/schedule">Scheduling</Link><Link href="/">TimeClock worker app</Link><button className="button quiet" onClick={signOut}>Sign out</button></nav>
       </header>
 
       {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
