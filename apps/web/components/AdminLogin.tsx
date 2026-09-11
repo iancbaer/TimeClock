@@ -44,6 +44,7 @@ export function AdminLogin() {
         {error && <div className="notice error">{error}</div>}
         <label>Email<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
         <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+        <Link href="/admin/forgot-password">Forgot password?</Link>
         <button className="button primary large" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
       </form>
     </main>

@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminRoleLabel } from "./AdminRoleLabel";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -39,6 +41,7 @@ interface Settings {
 }
 
 interface AdminUser {
+  role: "ADMIN" | "GLOBAL_ADMIN";
   id: string;
   name: string;
   email: string;
@@ -106,7 +109,6 @@ export function AdminDashboard() {
   const [newPin, setNewPin] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState({ name: "", email: "" });
-  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,16 +213,14 @@ export function AdminDashboard() {
     event.preventDefault();
     setBusy(true);
     setNotice(null);
-    setTemporaryPassword(null);
     try {
-      const created = await json(await fetch("/api/admin/users", {
+      const created = await json(await fetch("/api/admin/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newAdmin),
       }));
       setNewAdmin({ name: "", email: "" });
-      setTemporaryPassword(created.temporaryPassword);
-      setNotice({ kind: "success", text: `Manager account created for ${created.user.name}. Save the one-time temporary password shown below.` });
+      setNotice({ kind: "success", text: created.message });
       await load();
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not create manager account." });
@@ -370,19 +370,19 @@ export function AdminDashboard() {
           <h2>Manager accounts</h2>
           <p>Each manager signs in separately so approvals and corrections identify the person who acted.</p>
         </div>
-        {temporaryPassword && <div className="temporary-password" role="status"><span>One-time temporary password</span><strong>{temporaryPassword}</strong><small>Share it privately. TimeClock will not show it again, and the manager must replace it at first sign-in.</small></div>}
         <div className="admin-user-grid">
           <div className="admin-user-list">
             {adminUsers.map((user) => <article className={`admin-user-row ${user.active ? "" : "inactive"}`} key={user.id}>
-              <div><strong>{user.name}{user.id === currentAdminId ? " (you)" : ""}</strong><span>{user.email}</span><small>{user.mustChangePassword ? "Temporary password must be changed" : user.active ? "Active" : "Disabled"}</small></div>
+              <div><strong>{user.name}{user.id === currentAdminId ? " (you)" : ""}</strong><span>{user.email}</span><AdminRoleLabel role={user.role} /><small>{user.mustChangePassword ? "Temporary password must be changed" : user.active ? "Active" : "Disabled"}</small></div>
               <button className={`button ${user.active ? "danger" : "secondary"}`} type="button" disabled={busy || user.id === currentAdminId} onClick={() => void setAdminActive(user.id, !user.active)}>{user.active ? "Disable" : "Enable"}</button>
             </article>)}
           </div>
           <form className="inline-form admin-user-form" onSubmit={addAdminUser}>
-            <h3>Add manager</h3>
+            <h3>Invite manager</h3>
+            <p>Grants full TimeClock administration. To resend a pending invitation, enter the same email.</p>
             <label>Name<input value={newAdmin.name} onChange={(event) => setNewAdmin({ ...newAdmin, name: event.target.value })} required /></label>
             <label>Email<input type="email" value={newAdmin.email} onChange={(event) => setNewAdmin({ ...newAdmin, email: event.target.value })} required /></label>
-            <button className="button secondary" disabled={busy}>Create named account</button>
+            <button className="button secondary" disabled={busy}>Send invitation</button>
           </form>
         </div>
       </section>

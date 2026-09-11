@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "admin:promote": "tsx scripts/promote-global-admin.ts",
     "release:publish": "node scripts/publish-android-release.mjs"
   },
   "dependencies": {

@@ -83,12 +83,21 @@ model Employee {
   corrections        CorrectionRequest[]
   shifts             Shift[]
   timeOffRequests    TimeOffRequest[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([active, employeeNumber])
   @@index([active, lastName, firstName])
 }
 
+enum AdminRole {
+  ADMIN
+  GLOBAL_ADMIN
+}
+
 model AdminUser {
+  role                AdminRole           @default(ADMIN)
+  accountLinks        AccountLink[]
+  sessionVersion      Int                 @default(0)
   id                  String              @id @default(cuid())
   email               String              @unique
   name                String
@@ -102,6 +111,25 @@ model AdminUser {
   approvedPeriods     PayPeriodApproval[] @relation("PeriodApprover")
   reopenedPeriods     PayPeriodApproval[] @relation("PeriodReopener")
   resolvedTimeOff      TimeOffRequest[]
+  attendanceRecords   AttendanceRecord[]
+}
+
+model AccountLink {
+  id        String @id
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String @unique
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  @@index([adminId])
+}
+
+model AccountEmailLimit {
+  key       String @id
+  count     Int
+  expiresAt DateTime
 }
 
 model PayPeriodApproval {
@@ -253,6 +281,9 @@ enum TimeOffStatus {
 }
 
 model Shift {
+  occurrenceDate DateTime? @db.Date
+  seriesId    String?
+  series      ShiftSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   id          String      @id @default(cuid())
   employeeId  String
   startsAt    DateTime
@@ -267,6 +298,40 @@ model Shift {
 
   @@index([employeeId, startsAt, endsAt])
   @@index([status, startsAt])
+  @@index([seriesId, startsAt])
+  @@unique([seriesId, occurrenceDate])
+}
+
+model ShiftSeries {
+  id           String @id @default(cuid())
+  version      Int @default(1)
+  intervalWeeks Int
+  weekdays     Int[]
+  untilDate    DateTime? @db.Date
+  template     Json?
+  timeZone     String
+  createdAt    DateTime @default(now())
+  shifts       Shift[]
+}
+
+enum AttendanceKind {
+  SICK
+  NO_CALL_NO_SHOW
+}
+
+model AttendanceRecord {
+  id           String @id @default(cuid())
+  employeeId   String
+  date         DateTime @db.Date
+  kind         AttendanceKind
+  note         String @default("")
+  voided       Boolean @default(false)
+  version      Int @default(1)
+  recordedById String
+  createdAt    DateTime @default(now())
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  recordedBy   AdminUser @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  @@index([employeeId, date])
 }
 
 model TimeOffRequest {
@@ -285,3 +350,4 @@ model TimeOffRequest {
   @@index([employeeId, startDate, endDate])
   @@index([status, submittedAt])
 }
+

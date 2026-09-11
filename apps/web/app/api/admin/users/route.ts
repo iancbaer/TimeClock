@@ -17,7 +17,7 @@ export async function GET() {
     const current = await requireAdmin();
     const users = await prisma.adminUser.findMany({
       orderBy: [{ active: "desc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, active: true, mustChangePassword: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, active: true, mustChangePassword: true, createdAt: true },
     });
     return NextResponse.json({ users, currentAdminId: current.id });
   } catch (error) {
@@ -33,12 +33,13 @@ export async function POST(request: Request) {
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.adminUser.create({
         data: {
+          role: "ADMIN",
           name: input.name,
           email: input.email,
           passwordHash: await hash(temporaryPassword, 12),
           mustChangePassword: true,
         },
-        select: { id: true, name: true, email: true, active: true, mustChangePassword: true, createdAt: true },
+        select: { id: true, name: true, email: true, role: true, active: true, mustChangePassword: true, createdAt: true },
       });
       await tx.auditEvent.create({
         data: {

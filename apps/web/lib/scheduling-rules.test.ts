@@ -30,3 +30,24 @@ describe("scheduling dates and conflicts", () => {
     expect(() => shiftBounds("2026-09-10T09:00", "2026-09-10T08:00", zone)).toThrow();
   });
 });
+
+import {expandRecurringShift,recurringShiftInput} from './scheduling-rules';
+it('recurs at the same local hour across daylight-saving changes and respects interval weeks',()=>{
+ const rows=expandRecurringShift(recurringShiftInput.parse({employeeId:'test',startsAt:'2026-10-26T09:00',endsAt:'2026-10-26T17:00',recurrence:{intervalWeeks:1,weekdays:[1],untilDate:'2026-11-09'}}),'America/Los_Angeles');
+ expect(rows.map(r=>r.startsAt.toISOString())).toEqual(['2026-10-26T16:00:00.000Z','2026-11-02T17:00:00.000Z','2026-11-09T17:00:00.000Z']);
+ const alternating=expandRecurringShift(recurringShiftInput.parse({employeeId:'test',startsAt:'2026-10-26T22:00',endsAt:'2026-10-27T06:00',recurrence:{intervalWeeks:2,weekdays:[1],untilDate:'2026-11-09'}}),'America/Los_Angeles');
+ expect(alternating).toHaveLength(2);expect(alternating[1].endsAt.toISOString()).toBe('2026-11-10T14:00:00.000Z');
+});
+it('rejects empty repeat ranges and a DST-invalid occurrence instead of silently moving it',()=>{
+ const base={employeeId:'test',startsAt:'2026-03-01T02:30',endsAt:'2026-03-01T04:30',recurrence:{intervalWeeks:1,weekdays:[7],untilDate:'2026-03-08'}};
+ expect(()=>expandRecurringShift(recurringShiftInput.parse(base),'America/Los_Angeles')).toThrow('daylight-saving');
+ expect(()=>expandRecurringShift(recurringShiftInput.parse({...base,recurrence:{...base.recurrence,weekdays:[1],untilDate:'2026-03-01'}}),'America/Los_Angeles')).toThrow('No selected');
+});
+it('keeps continuing rules valid through missing and repeated DST times',()=>{
+ const rule=recurringShiftInput.parse({employeeId:'test',startsAt:'2030-01-06T02:30',endsAt:'2030-01-06T03:30',recurrence:{intervalWeeks:1,weekdays:[7],untilDate:null}});
+ const gap=expandRecurringShift(rule,zone,{from:'2030-03-10',to:'2030-03-10'});
+ expect(gap[0].startsAt.toISOString()).toBe('2030-03-10T10:30:00.000Z');
+ expect(gap[0].endsAt.getTime()-gap[0].startsAt.getTime()).toBe(3600000);
+ const repeated=expandRecurringShift({...rule,startsAt:'2030-01-06T01:30',endsAt:'2030-01-06T02:30'},zone,{from:'2030-11-03',to:'2030-11-03'});
+ expect(repeated[0].startsAt.toISOString()).toBe('2030-11-03T08:30:00.000Z');
+});

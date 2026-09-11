@@ -350,7 +350,7 @@ export function Kiosk() {
             </div>
             <p className="break-note"><strong>No automatic deductions:</strong> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
             {session.employee.manager && <button className="button primary full manager-review-launch" type="button" disabled={busy} onClick={() => void loadManagerReview()}>See hours for every employee</button>}
-            <button className="button secondary full manager-review-launch" type="button" disabled={busy} onClick={() => setScheduleOpen((open) => !open)}>{scheduleOpen ? "Close my schedule" : "My schedule & time off"}</button>
+            <button className="button secondary full manager-review-launch" type="button" disabled={busy} onClick={() => setScheduleOpen((open) => !open)}>{scheduleOpen ? "Close my schedule" : "My schedule / Request time off"}</button>
           </section>
 
           <section className="panel recent-panel">
@@ -383,3 +383,4 @@ export function Kiosk() {
     </main>
   );
 }
+

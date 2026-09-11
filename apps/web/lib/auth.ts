@@ -36,8 +36,8 @@ export async function authenticateAdmin(request: Request, email: string, passwor
   return admin;
 }
 
-export async function createAdminSession(admin: { id: string; email: string; name: string; mustChangePassword: boolean }): Promise<void> {
-  const token = await new SignJWT({ email: admin.email, name: admin.name, mustChangePassword: admin.mustChangePassword })
+export async function createAdminSession(admin: { id: string; email: string; name: string; mustChangePassword: boolean; sessionVersion: number }): Promise<void> {
+  const token = await new SignJWT({ email: admin.email, name: admin.name, mustChangePassword: admin.mustChangePassword, sessionVersion: admin.sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(admin.id)
     .setIssuer(SESSION_ISSUER)
@@ -60,7 +60,8 @@ export async function clearAdminSession(): Promise<void> {
   store.set(COOKIE_NAME, "", { httpOnly: true, sameSite: "strict", path: "/", maxAge: 0 });
 }
 
-export async function requireAdmin(options: { allowPasswordChangeRequired?: boolean } = {}) {
+// All restricted areas must use this guard. Database roles, never JWT roles, authorize access.
+export async function requireAdmin(options: { allowPasswordChangeRequired?: boolean; allowedRoles?: readonly ("ADMIN" | "GLOBAL_ADMIN")[] } = {}) {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   if (!token) throw new HttpError(401, "TimeClock manager sign-in is required.", "AUTH_REQUIRED");
@@ -69,8 +70,12 @@ export async function requireAdmin(options: { allowPasswordChangeRequired?: bool
     if (!verified.payload.sub) throw new Error("Missing subject");
     const admin = await prisma.adminUser.findUnique({ where: { id: verified.payload.sub } });
     if (!admin?.active) throw new Error("Unknown or inactive TimeClock administrator");
+    if ((verified.payload.sessionVersion ?? 0) !== admin.sessionVersion) throw new Error("Session revoked");
     if (admin.mustChangePassword && !options.allowPasswordChangeRequired) {
       throw new HttpError(403, "Change your temporary password before continuing.", "PASSWORD_CHANGE_REQUIRED");
+    }
+    if (admin.role !== "GLOBAL_ADMIN" && !(options.allowedRoles ?? ["ADMIN"]).includes(admin.role)) {
+      throw new HttpError(403, "This area requires additional administrator access.", "FORBIDDEN");
     }
     return admin;
   } catch (error) {
