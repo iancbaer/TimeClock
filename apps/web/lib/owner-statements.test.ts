@@ -1,0 +1,10 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+const s=vi.hoisted(()=>({admin:vi.fn(),owner:vi.fn(),findMany:vi.fn(),findFirst:vi.fn()}));
+vi.mock('./auth',()=>({requireAdmin:s.admin}));vi.mock('./owner-auth',()=>({requireOwner:s.owner}));
+vi.mock('./db',()=>({prisma:{ownerStatement:{findMany:s.findMany,findFirst:s.findFirst}}}));
+import {listOwnerStatements,downloadOwnerStatement} from './owner-statements';
+beforeEach(()=>{vi.clearAllMocks();s.owner.mockResolvedValue({id:'owner-a',name:'A'});s.admin.mockRejectedValue({status:403});});
+it('lists statements using explicit current owner grants only',async()=>{s.findMany.mockResolvedValue([]);expect(await listOwnerStatements(new Request('https://sdsoperations.com/api'))).toMatchObject({statements:[],owner:{name:'A'}});expect(s.findMany.mock.calls[0][0].where).toEqual({scope:{grants:{some:{contactId:'owner-a'}}}});});
+it('includes scope identity and orders newest statements first with stable ties',async()=>{s.findMany.mockResolvedValue([{id:'s',scope:{id:'p',name:'Property',kind:'PROPERTY'}}]);const result=await listOwnerStatements(new Request('https://sdsoperations.com/api'));expect(result.statements[0].scope).toEqual({id:'p',name:'Property',kind:'PROPERTY'});expect(s.findMany).toHaveBeenCalledWith(expect.objectContaining({include:{scope:{select:{id:true,name:true,kind:true}}},orderBy:[{createdAt:'desc'},{id:'desc'}]}));});
+it('denies another owner and revoked grant downloads without returning bytes',async()=>{s.findFirst.mockResolvedValue(null);await expect(downloadOwnerStatement('private')).rejects.toMatchObject({status:404});expect(s.findFirst.mock.calls[0][0].where).toEqual({id:'private',scope:{grants:{some:{contactId:'owner-a'}}}});});
+it('Global Admin download uses the explicit Global Admin guard',async()=>{s.admin.mockResolvedValue({role:'GLOBAL_ADMIN'});s.findFirst.mockResolvedValue({filename:'a.pdf',document:{bytes:Buffer.from('PDF')}});const response=await downloadOwnerStatement('a');expect(s.admin).toHaveBeenCalledWith({allowedRoles:[]});expect(response.headers.get('content-type')).toBe('application/pdf');expect(response.headers.get('cache-control')).toContain('no-store');});

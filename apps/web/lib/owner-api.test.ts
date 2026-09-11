@@ -1,0 +1,7 @@
+import {expect,it,vi} from 'vitest';
+vi.mock('./db',()=>({prisma:{ownerContact:{findUnique:vi.fn().mockResolvedValue(null)}}}));vi.mock('./account-links',()=>({takeEmailLimit:vi.fn().mockResolvedValue(true)}));
+import {ownerAuthAction,ownerResult} from './owner-api';
+it('rejects cross-origin auth for every endpoint',async()=>{for(const action of ['login','logout','forgot-password','set-password'])await expect(ownerAuthAction(new Request('https://sdsoperations.com/api',{method:'POST',headers:{origin:'https://evil.test'}}),action)).rejects.toMatchObject({status:403});});
+it('returns generic forgot-password result for unknown accounts',async()=>{expect(await ownerAuthAction(new Request('https://sdsoperations.com/api',{method:'POST',headers:{origin:'https://sdsoperations.com'},body:JSON.stringify({email:'missing@example.test'})}),'forgot-password')).toEqual({ok:true});});
+it('rejects login passwords exceeding bcrypt byte limit before account lookup',async()=>{await expect(ownerAuthAction(new Request('https://sdsoperations.com/api',{method:'POST',headers:{origin:'https://sdsoperations.com'},body:JSON.stringify({email:'a@example.test',password:'é'.repeat(37)})}),'login')).rejects.toMatchObject({name:'ZodError'});});
+it('redacts unexpected failures',async()=>{const response=await ownerResult(async()=>{throw new Error('SECRET');});expect(response.status).toBe(500);expect(await response.text()).not.toContain('SECRET');});

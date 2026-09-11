@@ -7,6 +7,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+enum OwnerScopeKind {
+  ENTITY
+  PROPERTY
+}
+model OwnerContact {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  active Boolean @default(true)
+  passwordHash String?
+  sessionVersion Int @default(0)
+  grants OwnerGrant[]
+  links OwnerLink[]
+}
+model OwnerScope {
+  id String @id @default(cuid())
+  name String
+  kind OwnerScopeKind
+  grants OwnerGrant[]
+  statements OwnerStatement[]
+}
+model OwnerGrant {
+  contactId String
+  scopeId String
+  contact OwnerContact @relation(fields:[contactId], references:[id], onDelete:Cascade)
+  scope OwnerScope @relation(fields:[scopeId], references:[id], onDelete:Restrict)
+  @@id([contactId,scopeId])
+  @@index([scopeId])
+}
+model OwnerStatement {
+  id String @id @default(cuid())
+  scopeId String
+  scope OwnerScope @relation(fields:[scopeId], references:[id], onDelete:Restrict)
+  title String
+  period String
+  filename String
+  byteSize Int
+  sha256 String
+  createdAt DateTime @default(now())
+  document OwnerStatementBytes?
+  @@index([scopeId,createdAt])
+}
+model OwnerStatementBytes {
+  statementId String @id
+  statement OwnerStatement @relation(fields:[statementId],references:[id],onDelete:Cascade)
+  bytes Bytes
+}
+model OwnerLink {
+  id String @id
+  contactId String
+  contact OwnerContact @relation(fields:[contactId],references:[id],onDelete:Cascade)
+  tokenHash String @unique
+  purpose String
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([contactId])
+}
+
 enum PunchType {
   WORK_IN
   MEAL_START
