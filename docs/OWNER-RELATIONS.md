@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented locally on branch `feat/owner-relations`, based on verified Global Admin live-source commit f6726b3. Not deployed to production. Owner invitations and financial statements have not been sent or added to production.
+Implemented on branch `feat/owner-relations`, based on verified Global Admin live-source commit f6726b3. Subsequently deployed with verified SDS Cloudflare account access; see [OWNER-RELATIONS-DEPLOYED.md](OWNER-RELATIONS-DEPLOYED.md) for current deployment evidence and remaining authenticated-screen/email verification. No real owner invitations or financial statements were published during deployment.
 
 ## Features
 
