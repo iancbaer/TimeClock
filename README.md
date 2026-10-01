@@ -11,7 +11,7 @@ TimeClock is worker-protective timekeeping for a shared Android tablet, Windows 
 - One-minute authenticated idle timeout and manual **Done** action
 - Recent time and worker-submitted correction requests inside the brief worker session
 - No visible administrative link or everyday server controls on the worker screen
-- Ian Baer's ordinary employee account uses PIN `9999` and has manager permission; after signing in he can clock normally or open read-only biweekly hours for every employee
+- Obtain employee kiosk credentials privately from your TimeClock administrator. Manager-enabled employees can clock normally or open read-only biweekly hours for every employee.
 - Offline punches are saved durably on the tablet with their device time and automatically sent to the TimeClock database on TRESA when connectivity returns
 
 Employee PINs are private kiosk credentials, stored by the service as keyed lookups and bcrypt verifiers rather than plaintext. Full TimeClock administration still requires the administrator account. See [Security and privacy](docs/SECURITY-AND-PRIVACY.md).
