@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Schedule } from "../../web/components/Schedule";
+import { createQueueSynchronizer, type SavedPunch } from "./offline-sync";
 
 type PunchType = "WORK_IN" | "WORK_OUT";
 type RecordPunchType = PunchType | "MEAL_START" | "MEAL_END";
@@ -15,13 +16,7 @@ interface Session {
   recentPunches: Array<{ id: string; type: RecordPunchType; occurredAt: string; revised?: boolean }>;
 }
 
-interface QueuedPunch {
-  employeeId: string;
-  offlineToken: string;
-  idempotencyKey: string;
-  type: PunchType;
-  occurredAt: string;
-}
+type QueuedPunch = SavedPunch;
 
 interface OfflineRoster {
   generatedAt: string;
@@ -245,23 +240,21 @@ export function App() {
     return () => { window.clearInterval(timer); window.removeEventListener("online", online); };
   }, [syncOfflineProfiles]);
 
-  const syncQueuedPunches = useCallback(async () => {
-    if (!serverUrl) return;
-    const queue = storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []);
-    if (!queue.length) { setQueuedCount(0); return; }
-    const remaining: QueuedPunch[] = [];
-    for (const punch of queue) {
-      try {
+  const syncQueuedPunches = useMemo(() => createQueueSynchronizer({
+    read: () => storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []),
+    write: (queue) => {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+      setQueuedCount(queue.length);
+    },
+    send: async (punch) => {
+      if (!serverUrl) throw new Error("Connect this tablet to the TimeClock server.");
         await data(await fetch(`${serverUrl}/api/kiosk/offline-punch`, {
           method: "POST",
           headers: kioskHeaders({ Authorization: `Bearer ${punch.offlineToken}`, "Content-Type": "application/json" }),
           body: JSON.stringify({ type: punch.type, occurredAt: punch.occurredAt, idempotencyKey: punch.idempotencyKey, deviceLabel: "Android kiosk · saved offline" }),
         }));
-      } catch { remaining.push(punch); }
-    }
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
-    setQueuedCount(remaining.length);
-  }, [serverUrl]);
+    },
+  }), [serverUrl]);
 
   const checkForUpdate = useCallback(async (updateState?: KioskUpdateState, lastUpdateError?: string | null, suppressDisplay = false) => {
     if (!serverUrl || !deviceLabel || !Capacitor.isNativePlatform()) return null;
@@ -392,7 +385,7 @@ export function App() {
     try {
       await syncQueuedPunches();
       const queued = storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []);
-      if (queued.length) throw new Error(`${queued.length} offline ${queued.length === 1 ? "punch is" : "punches are"} still waiting to synchronize. The update was postponed.`);
+      if (queued.length) throw new Error(`${queued.length} saved ${queued.length === 1 ? "punch still needs" : "punches still need"} synchronization. ${queued.find(punch => punch.syncError)?.syncError ?? "See Saved punches for details."} The update was postponed.`);
       const info = await AppUpdate.getAppInfo();
       if (!info.canInstallPackages) {
         await AppUpdate.openInstallPermissionSettings();
@@ -519,6 +512,20 @@ export function App() {
       <Keypad value={employeeId} onChange={setEmployeeId} submit={() => void signIn()} busy={busy} />
     </form> : <div className="grid">
       <section className="panel actions"><div className="welcome"><div><p className="eyebrow">Confirm your action</p><h2>{session.employee.firstName} {session.employee.lastName}</h2>{session.employee.manager && <p className="employee-number">Admin Account</p>}{session.offline && <p className="employee-number">Offline · punches save on this tablet</p>}</div><button className="button quiet" onClick={() => returnToCode()}>Done</button></div>
+        {session.employee.manager && queuedCount > 0 && <section aria-label="Saved punches" className="notice error">
+          <h3>Saved punches need attention</h3>
+          <p>These original records remain safely stored on this tablet.</p>
+          {storedJson<QueuedPunch[]>(OFFLINE_QUEUE_KEY, []).map(punch => {
+            const profile = Object.values(storedJson<Record<string, Session>>(OFFLINE_PROFILES_KEY, {})).find(item => item.employee.id === punch.employeeId);
+            return <div key={punch.idempotencyKey}>
+              <strong>{profile ? `${profile.employee.firstName} ${profile.employee.lastName}` : `Employee ${punch.employeeId}`}</strong>
+              <p>{labels[punch.type]} · {new Date(punch.occurredAt).toLocaleString()}</p>
+              <p>{punch.syncError ?? "Waiting for the next synchronization attempt."}</p>
+              <small>Record reference: {punch.idempotencyKey}</small>
+            </div>;
+          })}
+          <button className="button secondary" type="button" onClick={() => void syncQueuedPunches()}>Retry saved punches</button>
+        </section>}
         <div className={`action-grid action-count-${session.allowedPunchTypes.length}`}>{session.allowedPunchTypes.map((type) => <button className={`punch ${type}`} onClick={() => punch(type)} disabled={busy} key={type}><strong>Confirm {labels[type].toLowerCase()}</strong><small>{type === "WORK_IN" ? "You are currently clocked out" : "You are currently clocked in"}</small></button>)}</div>
         <p className="break"><b>No automatic deductions:</b> TimeClock counts the time between clock in and clock out. For an unpaid meal, clock out when it begins and clock back in when work resumes.</p>
         {session.employee.manager && <button className="button primary" type="button" disabled={busy || session.offline} onClick={() => void loadManagerReview("")}>{session.offline ? "See hours requires internet" : "See hours for every employee"}</button>}
@@ -548,6 +555,6 @@ export function App() {
         <button className="button primary" disabled={busy}>{busy ? "Submitting…" : "Submit correction request"}</button>
       </form>}
     </div>}
-    <footer className="kiosk-footer">{managerReview ? "Manager review is read-only and closes automatically. Punches come from the central TimeClock database." : `${queuedCount ? `${queuedCount} ${queuedCount === 1 ? "punch" : "punches"} saved locally, waiting to sync when internet returns. ` : ""}Original punches remain auditable. Use the correction request if your record does not match your work.`}</footer>
+    <footer className="kiosk-footer">{managerReview ? "Manager review is read-only and closes automatically. Punches come from the central TimeClock database." : `${queuedCount ? `${queuedCount} ${queuedCount === 1 ? "punch" : "punches"} saved on this tablet, awaiting synchronization. A manager can view details after signing in. ` : ""}Original punches remain auditable. Use the correction request if your record does not match your work.`}</footer>
   </main>;
 }
