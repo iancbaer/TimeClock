@@ -63,7 +63,8 @@ const server = createServer((incoming, outgoing) => {
 
   const headers = { ...incoming.headers, host: `${upstreamHost}:${upstreamPort}` };
   delete headers.connection;
-  delete headers["x-timeclock-device-key"];
+  // Overwrite any client-supplied value so the service can trust one hop (TRUSTED_PROXY_HOPS=1).
+  headers["x-forwarded-for"] = incoming.socket.remoteAddress ?? "";
 
   const upstream = upstreamRequest({
     hostname: upstreamHost,

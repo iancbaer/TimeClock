@@ -41,7 +41,8 @@ Tradeoff: Ian's known four-digit PIN is not strong authentication. Use this mode
 | Area | Implemented now | Recommended production control not bundled |
 | --- | --- | --- |
 | Transport | Remote kiosk URLs must use HTTPS. | Managed TLS termination, HSTS, certificate monitoring. |
-| ID throttling | Single-process source-based limiter for unknown IDs. | Shared durable limiter/WAF rules and alerts for multi-instance or public exposure. |
+| ID throttling | Single-process failed-attempt limiter. Forwarded client addresses are used only when `TRUSTED_PROXY_HOPS` names the proxies you operate; otherwise all callers share one bucket. | Shared durable limiter/WAF rules and alerts for multi-instance or public exposure. |
+| Offline roster | The service refuses `/api/kiosk/offline-roster` unless the request carries `KIOSK_DEVICE_KEY`; with no key configured the endpoint is closed. | Per-device keys with revocation; a slow, salted offline PIN verifier. |
 | Secrets | Environment variables for session signing, database, and TimeClock administrator credentials. | Secret manager, rotation procedure, audited access. |
 | Database | PostgreSQL constraints, transactions, immutable model. | Private network, encrypted storage, least-privilege database roles, database monitoring. |
 | Backups | Restore-compatible PostgreSQL model; documented commands. | Scheduled encrypted off-host backups and recurring restore exercises. |

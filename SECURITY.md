@@ -31,6 +31,7 @@ Include the affected commit/version, reproducible steps using synthetic data, im
 - The in-process API does not replace a reverse proxy/WAF, centralized rate limiting, monitoring, or intrusion detection.
 - Android production APKs use an organization-controlled signing key stored outside Git and in protected GitHub Actions secrets. Keep an encrypted recovery copy; losing the key makes in-place updates impossible.
 - Tablet APKs and release manifests are private TRESA-hosted artifacts. Do not publish them in public GitHub Releases while the shared kiosk device key remains embedded.
+- The service itself requires the kiosk device key for the offline roster and keeps that endpoint closed when no key is configured. The roster still contains a fast, unsalted digest of each four-digit PIN, so anyone holding the device key or a provisioned tablet can recover PINs; treat both as credentials.
 - The shared kiosk device key filters public gateway traffic but is bundled into each APK and is not a substitute for employee PIN authentication, managed-device controls, or server-side session authorization.
 - This project does not store payroll bank information, Social Security numbers, or payroll credentials and should not be extended to do so without a separate security design review.
 

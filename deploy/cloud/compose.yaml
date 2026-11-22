@@ -22,6 +22,8 @@ services:
       NODE_ENV: production
       PORT: 3000
       NEXT_TELEMETRY_DISABLED: "1"
+      # Caddy replaces X-Forwarded-For with the real socket address.
+      TRUSTED_PROXY_HOPS: "1"
     depends_on:
       database: { condition: service_healthy }
     ports: ["127.0.0.1:3100:3000"]

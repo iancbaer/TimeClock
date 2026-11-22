@@ -46,6 +46,8 @@ services:
       DATABASE_URL: postgresql://timeclock:${POSTGRES_PASSWORD}@database:5432/timeclock?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       KIOSK_ALLOWED_ORIGINS: ${KIOSK_ALLOWED_ORIGINS:-https://localhost,capacitor://localhost}
+      KIOSK_DEVICE_KEY: ${KIOSK_DEVICE_KEY:-}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TimeClock}
       TIMECLOCK_ANDROID_RELEASE_DIR: /var/lib/timeclock/android-releases
     volumes:

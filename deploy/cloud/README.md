@@ -40,7 +40,7 @@ Check the application's environment schema before changing configuration. Never 
 
 Build a versioned image using the repository Dockerfile, set `TIMECLOCK_IMAGE` in `/srv/timeclock/.env`, and run `docker compose up -d app`. Back up before migrations, run migrations explicitly, and verify `/api/health` plus authenticated scheduling routes. Do not seed production. Do not run `docker compose down -v`.
 
-The bulk offline roster requires the existing kiosk device key at the public proxy. Forwarded client-IP headers are replaced with the real socket address; keep the DNS record unproxied unless trusted-proxy handling is explicitly redesigned.
+The bulk offline roster requires the existing kiosk device key at the public proxy and again in the service, so `KIOSK_DEVICE_KEY` must also be present in `app.env` before upgrading or tablets will stop refreshing offline profiles. Forwarded client-IP headers are replaced with the real socket address; keep the DNS record unproxied unless trusted-proxy handling is explicitly redesigned.
 
 ## Backups and recovery
 
