@@ -21,6 +21,22 @@ const health = await request("/api/health", { headers: { Origin: "https://localh
 assert.equal(health.body.status, "ok");
 assert.equal(health.response.headers.get("access-control-allow-origin"), "https://localhost");
 
+// The offline roster carries sign-in material for every employee, so the service itself
+// must refuse it without the device key, whatever sits in front of it.
+const deviceKey = process.env.KIOSK_DEVICE_KEY;
+if (deviceKey) {
+  const rosterWithoutKey = await fetch(`${baseUrl}/api/kiosk/offline-roster`);
+  assert.equal(rosterWithoutKey.status, 401);
+  const rosterWithWrongKey = await fetch(`${baseUrl}/api/kiosk/offline-roster`, {
+    headers: { "X-TimeClock-Device-Key": `${deviceKey}-wrong` },
+  });
+  assert.equal(rosterWithWrongKey.status, 401);
+  const roster = await request("/api/kiosk/offline-roster", {
+    headers: { "X-TimeClock-Device-Key": deviceKey },
+  });
+  assert.ok(Array.isArray(roster.body.profiles));
+}
+
 const badAttempt = await fetch(`${baseUrl}/api/kiosk/session`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "X-Forwarded-For": failedCodeSource },

@@ -78,7 +78,7 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
-Use the generated value for `AUTH_SECRET`; set unique database and TimeClock administrator credentials; and remove or replace all synthetic seed values before production.
+Use the generated value for `AUTH_SECRET`; generate a second value for `KIOSK_DEVICE_KEY` if tablets will work offline (without it the offline roster endpoint stays closed); set unique database and TimeClock administrator credentials; and remove or replace all synthetic seed values before production.
 
 ```bash
 docker compose up -d --build

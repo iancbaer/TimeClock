@@ -50,6 +50,8 @@ jobs:
       SEED_SYNTHETIC_EMPLOYEE: "true"
       SMOKE_EMPLOYEE_PIN: "7380"
       KIOSK_ALLOWED_ORIGINS: https://localhost,capacitor://localhost
+      KIOSK_DEVICE_KEY: smoke-device-key-must-be-at-least-32-characters
+      TRUSTED_PROXY_HOPS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

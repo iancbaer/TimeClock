@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { errorResponse } from "@/lib/http";
 import { createOfflinePunchSession } from "@/lib/kiosk-auth";
+import { requireKioskDevice } from "@/lib/kiosk-device";
 import { effectiveRecentPunches } from "@/lib/punches";
 import { getSettings } from "@/lib/settings";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    requireKioskDevice(request);
     const [employees, settings] = await Promise.all([
       prisma.employee.findMany({
         where: { active: true, offlinePinDigest: { not: null } },
