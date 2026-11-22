@@ -20,9 +20,24 @@ const globalRateState = globalThis as unknown as { timeclockAuthenticationFailur
 const failures = globalRateState.timeclockAuthenticationFailures ?? new Map<string, FailureBucket>();
 globalRateState.timeclockAuthenticationFailures = failures;
 
-function clientSource(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || request.headers.get("x-real-ip") || "local-client";
+// Forwarded headers are client-controlled unless a proxy we operate wrote them.
+// TRUSTED_PROXY_HOPS says how many such proxies sit in front of this service;
+// the client address is then that many entries from the right of the chain.
+// With no trusted proxy every request shares one bucket, so a caller cannot
+// escape throttling by inventing a new X-Forwarded-For value per attempt.
+function trustedProxyHops(): number {
+  const hops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "0", 10);
+  return Number.isInteger(hops) && hops > 0 ? hops : 0;
+}
+
+export function clientSource(request: Request): string {
+  const hops = trustedProxyHops();
+  if (hops === 0) return "direct";
+  const chain = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return chain[chain.length - hops] ?? "direct";
 }
 
 function keyFor(request: Request, namespace: string): string {
